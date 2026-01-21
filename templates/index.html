@@ -1,1 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Equizard</title>
+  <style>
+    body{
+      margin:0;
+      font-family: Arial, sans-serif;
+      text-align:center;
+      padding: 28px 18px 50px;
+      background:#f6f7fb;
+      color:#111827;
+      font-size: 20px;          /* <- forces readable base size */
+      -webkit-text-size-adjust: 100%; /* <- stops iOS “shrinking” */
+    }
+    .wrap{ max-width:1100px; margin:0 auto; }
+    .brand img{ max-width:380px; width:100%; height:auto; }
 
+    h1{ font-size: 52px; margin: 14px 0 10px; }
+    .sub{ color:#4b5563; margin: 8px 0 18px; }
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap:18px;
+      margin-top:22px;
+    }
+    @media (max-width: 900px){ .grid{ grid-template-columns: 1fr; } }
+
+    .card{
+      background:#fff;
+      border:1px solid #e6e8ef;
+      border-radius:16px;
+      padding:16px;
+    }
+    .card a{ text-decoration:none; color:inherit; display:block; }
+    .card img{ width:100%; max-width:360px; height:auto; display:block; margin: 0 auto 10px; }
+
+    .cta{
+      display:inline-block;
+      margin-top:10px;
+      padding:10px 14px;
+      border-radius:10px;
+      border:1px solid #e6e8ef;
+      background:#fff;
+      font-weight:700;
+      font-size: 18px;
+    }
+    .meta{ color:#6b7280; font-size: 15px; margin-top:8px; }
+    .soon{ margin-top:10px; font-size: 13px; font-weight:700; color:#7a5d00;
+           background:#fff3cd; border:1px solid #ffe69c; display:inline-block;
+           padding:6px 10px; border-radius:999px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <img src="/static/equizard-logo.png" alt="Equizard logo">
+    </div>
+
+    <div class="sub">Wizard tools for equestrian events</div>
+    <div class="sub">Choose a wizard to view screenshots, pricing and sign-up.</div>
+
+    <div class="grid">
+      <div class="card">
+        <a href="/triwizard">
+          <img src="/static/triwizard-logo-final.png" alt="TriWizard logo">
+          <div class="cta">View TriWizard →</div>
+          <div class="meta">Screenshots • Pricing • Sign up</div>
+        </a>
+      </div>
+
+      <div class="card">
+        <a href="/tetwizard">
+          <img src="/static/tetwizard-logo-final.png" alt="TetWizard logo">
+          <div class="cta">View TetWizard →</div>
+          <div class="meta">Screenshots • Pricing • Sign up</div>
+        </a>
+      </div>
+
+      <div class="card">
+        <a href="/eventingwizard">
+          <img src="/static/eventingwizard-logo-final.png" alt="EventingWizard logo">
+          <div class="cta">View EventingWizard →</div>
+          <div class="meta">Screenshots • Pricing • Sign up</div>
+          <div class="soon">Coming soon</div>
+        </a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
