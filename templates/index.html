@@ -141,6 +141,12 @@
       background:#1d4ed8;
     }
 
+    .btn-link.disabled{
+      background:#9ca3af;
+      cursor:not-allowed;
+      pointer-events:none;
+    }
+
     .lookup-message{
       margin-top:16px;
       padding:12px 14px;
@@ -189,6 +195,34 @@
       color:#6b7280;
       text-align:left;
       line-height:1.5;
+    }
+
+    .status-pill{
+      display:inline-block;
+      margin-top:8px;
+      padding:4px 10px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:700;
+      border:1px solid transparent;
+    }
+
+    .status-active{
+      background:#dcfce7;
+      color:#166534;
+      border-color:#86efac;
+    }
+
+    .status-expired{
+      background:#fef3c7;
+      color:#92400e;
+      border-color:#fcd34d;
+    }
+
+    .status-closed{
+      background:#fee2e2;
+      color:#991b1b;
+      border-color:#fca5a5;
     }
 
     footer{
@@ -278,14 +312,28 @@
                     Brand: {{ e.access_type }}<br>
                   {% endif %}
                   {% if e.event_id %}
-                    Event ID: <code>{{ e.event_id }}</code>
+                    Event ID: <code>{{ e.event_id }}</code><br>
+                  {% endif %}
+
+                  {% if e.event_status == "active" %}
+                    <span class="status-pill status-active">Active</span>
+                  {% elif e.event_status == "expired" %}
+                    <span class="status-pill status-expired">Expired</span>
+                  {% elif e.event_status == "closed" %}
+                    <span class="status-pill status-closed">Closed</span>
                   {% endif %}
                 </div>
 
                 <div style="text-align:left;">
-                  <a href="{{ e.access_url }}" target="_blank" class="btn-link">
-                    Open event
-                  </a>
+                  {% if e.event_status == "expired" %}
+                    <a href="{{ e.access_url }}" target="_blank" class="btn-link">
+                      Open event
+                    </a>
+                  {% else %}
+                    <a href="{{ e.access_url }}" target="_blank" class="btn-link">
+                      Open event
+                    </a>
+                  {% endif %}
                 </div>
               </li>
             {% endfor %}
