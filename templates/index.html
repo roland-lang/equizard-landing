@@ -75,7 +75,6 @@
       margin-top:8px;
     }
 
-    /* Returning organiser */
     .return-box{
       margin-top:40px;
       background:#fff;
@@ -272,20 +271,19 @@
                 <div class="result-title">{{ e.event_name }}</div>
 
                 <div class="result-meta">
-                  {% if e.club_name %}
-                    Club: {{ e.club_name }}<br>
-                  {% endif %}
-                  {% if e.package_type %}
-                    Package: {{ e.package_type }}<br>
+                  {% if e.product_name %}
+                    Product: {{ e.product_name }}<br>
                   {% endif %}
                   {% if e.access_type %}
                     Brand: {{ e.access_type }}<br>
                   {% endif %}
-                  Event ID: <code>{{ e.event_id }}</code>
+                  {% if e.event_id %}
+                    Event ID: <code>{{ e.event_id }}</code>
+                  {% endif %}
                 </div>
 
                 <div style="text-align:left;">
-                  <a href="{{ e.link }}" target="_blank" class="btn-link">
+                  <a href="{{ e.access_url }}" target="_blank" class="btn-link">
                     Open event
                   </a>
                 </div>
