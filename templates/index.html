@@ -1,191 +1,306 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Equizard</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Equizard</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
 
-<style>
-body{
-margin:0;
-font-family:'Montserrat',Arial,sans-serif;
-text-align:center;
-padding:28px 18px 50px;
-background:#f6f7fb;
-color:#111827;
-font-size:20px;
--webkit-text-size-adjust:100%;
-}
+  <style>
+    body{
+      margin:0;
+      font-family:'Montserrat',Arial,sans-serif;
+      text-align:center;
+      padding:28px 18px 50px;
+      background:#f6f7fb;
+      color:#111827;
+      font-size:20px;
+      -webkit-text-size-adjust:100%;
+    }
 
-.wrap{max-width:1100px;margin:0 auto;}
+    .wrap{
+      max-width:1100px;
+      margin:0 auto;
+    }
 
-.brand img{max-width:380px;width:100%;height:auto;}
+    .brand img{
+      max-width:380px;
+      width:100%;
+      height:auto;
+    }
 
-.sub{color:#4b5563;margin:12px 0 18px;}
+    .sub{
+      color:#4b5563;
+      margin:12px 0 18px;
+    }
 
-.grid{
-display:grid;
-grid-template-columns:repeat(3,minmax(0,1fr));
-gap:18px;
-margin-top:22px;
-}
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:18px;
+      margin-top:22px;
+    }
 
-@media(max-width:900px){
-.grid{grid-template-columns:1fr;}
-}
+    @media(max-width:900px){
+      .grid{
+        grid-template-columns:1fr;
+      }
+    }
 
-.card{
-background:#fff;
-border:1px solid #e6e8ef;
-border-radius:16px;
-padding:16px;
-}
+    .card{
+      background:#fff;
+      border:1px solid #e6e8ef;
+      border-radius:16px;
+      padding:16px;
+    }
 
-.card a{
-text-decoration:none;
-color:inherit;
-display:block;
-}
+    .card a{
+      text-decoration:none;
+      color:inherit;
+      display:block;
+    }
 
-.card img{
-width:100%;
-max-width:360px;
-height:auto;
-display:block;
-margin:0 auto 10px;
-}
+    .card img{
+      width:100%;
+      max-width:360px;
+      height:auto;
+      display:block;
+      margin:0 auto 10px;
+    }
 
-.meta{
-color:#6b7280;
-font-size:15px;
-margin-top:8px;
-}
+    .meta{
+      color:#6b7280;
+      font-size:15px;
+      margin-top:8px;
+    }
 
-/* Returning organiser */
+    /* Returning organiser */
+    .return-box{
+      margin-top:40px;
+      background:#fff;
+      border:1px solid #e6e8ef;
+      border-radius:16px;
+      padding:22px;
+      max-width:760px;
+      margin-left:auto;
+      margin-right:auto;
+      text-align:left;
+    }
 
-.return-box{
-margin-top:40px;
-background:#fff;
-border:1px solid #e6e8ef;
-border-radius:16px;
-padding:22px;
-max-width:520px;
-margin-left:auto;
-margin-right:auto;
-}
+    .return-box h2{
+      margin-top:0;
+      margin-bottom:8px;
+      font-size:22px;
+      text-align:center;
+    }
 
-.return-box h2{
-margin-top:0;
-font-size:22px;
-}
+    .return-box p{
+      margin:0;
+    }
 
-.return-box input{
-width:100%;
-padding:12px;
-border-radius:8px;
-border:1px solid #d1d5db;
-font-size:16px;
-margin-top:10px;
-}
+    .return-box input{
+      width:100%;
+      padding:12px;
+      border-radius:8px;
+      border:1px solid #d1d5db;
+      font-size:16px;
+      margin-top:10px;
+      box-sizing:border-box;
+    }
 
-.btn{
-margin-top:14px;
-background:#2563eb;
-border:none;
-color:white;
-padding:12px 18px;
-border-radius:8px;
-font-size:16px;
-cursor:pointer;
-}
+    .btn{
+      margin-top:14px;
+      background:#2563eb;
+      border:none;
+      color:white;
+      padding:12px 18px;
+      border-radius:8px;
+      font-size:16px;
+      cursor:pointer;
+      font-family:'Montserrat',Arial,sans-serif;
+      font-weight:600;
+    }
 
-.btn:hover{
-background:#1d4ed8;
-}
+    .btn:hover{
+      background:#1d4ed8;
+    }
 
-footer{
-margin-top:40px;
-font-size:14px;
-color:#6b7280;
-}
-</style>
+    .btn-link{
+      display:inline-block;
+      margin-top:10px;
+      background:#2563eb;
+      color:#fff !important;
+      padding:10px 14px;
+      border-radius:8px;
+      font-size:15px;
+      font-weight:600;
+      text-decoration:none !important;
+    }
+
+    .btn-link:hover{
+      background:#1d4ed8;
+    }
+
+    .lookup-message{
+      margin-top:16px;
+      padding:12px 14px;
+      border-radius:10px;
+      background:#f9fafb;
+      border:1px solid #e5e7eb;
+      color:#4b5563;
+      font-size:15px;
+      text-align:center;
+    }
+
+    .results{
+      margin-top:18px;
+    }
+
+    .results h3{
+      margin:0 0 12px 0;
+      font-size:20px;
+      text-align:center;
+    }
+
+    .result-list{
+      list-style:none;
+      padding:0;
+      margin:0;
+      display:grid;
+      gap:12px;
+    }
+
+    .result-item{
+      border:1px solid #e6e8ef;
+      border-radius:12px;
+      padding:14px;
+      background:#f9fbff;
+    }
+
+    .result-title{
+      font-size:18px;
+      font-weight:700;
+      margin-bottom:6px;
+      text-align:left;
+    }
+
+    .result-meta{
+      font-size:14px;
+      color:#6b7280;
+      text-align:left;
+      line-height:1.5;
+    }
+
+    footer{
+      margin-top:40px;
+      font-size:14px;
+      color:#6b7280;
+    }
+  </style>
 </head>
 
 <body>
+  <div class="wrap">
 
-<div class="wrap">
+    <div class="brand">
+      <img src="/static/equizard-logo.png" alt="Equizard logo">
+    </div>
 
-<div class="brand">
-<img src="/static/equizard-logo.png" alt="Equizard logo">
-</div>
+    <div class="sub">Wizard tools for equestrian events</div>
+    <div class="sub">Choose a wizard to quickly and easily set-up your competition.</div>
 
-<div class="sub">Wizard tools for equestrian events</div>
-<div class="sub">Choose a wizard to quickly and easily set-up your competition.</div>
+    <div class="grid">
+      <div class="card">
+        <a href="/triwizard">
+          <img src="/static/triwizard-logo.png" alt="TriWizard logo">
+          <div class="meta">Screenshots • Pricing • Enter</div>
+        </a>
+      </div>
 
-<div class="grid">
+      <div class="card">
+        <a href="/tetwizard">
+          <img src="/static/tetwizard-logo.png" alt="TetWizard logo">
+          <div class="meta">Screenshots • Pricing • Enter</div>
+        </a>
+      </div>
 
-<div class="card">
-<a href="/triwizard">
-<img src="/static/triwizard-logo.png" alt="TriWizard logo">
-<div class="meta">Screenshots • Pricing • Enter</div>
-</a>
-</div>
+      <div class="card">
+        <a href="/eventingwizard">
+          <img src="/static/eventingwizard-logo.png" alt="EventingWizard logo">
+          <div class="meta">Screenshots • Pricing • Enter</div>
+        </a>
+      </div>
+    </div>
 
-<div class="card">
-<a href="/tetwizard">
-<img src="/static/tetwizard-logo.png" alt="TetWizard logo">
-<div class="meta">Screenshots • Pricing • Enter</div>
-</a>
-</div>
+    <div class="return-box">
+      <h2>Returning organiser</h2>
 
-<div class="card">
-<a href="/eventingwizard">
-<img src="/static/eventingwizard-logo.png" alt="EventingWizard logo">
-<div class="meta">Screenshots • Pricing • Enter</div>
-</a>
-</div>
+      <p style="font-size:16px;color:#6b7280;text-align:center;">
+        Enter the email address used when creating your event.
+      </p>
 
-</div>
+      <form method="post" action="/return">
+        <input
+          type="email"
+          name="email"
+          placeholder="your@email.com"
+          value="{{ email or '' }}"
+          required
+        >
 
+        <div style="text-align:center;">
+          <button class="btn" type="submit">
+            Find my event
+          </button>
+        </div>
+      </form>
 
-<!-- Returning organiser -->
+      {% if message %}
+        <div class="lookup-message">
+          {{ message }}
+        </div>
+      {% endif %}
 
-<div class="return-box">
+      {% if events %}
+        <div class="results">
+          <h3>Your events</h3>
 
-<h2>Returning organiser</h2>
+          <ul class="result-list">
+            {% for e in events %}
+              <li class="result-item">
+                <div class="result-title">{{ e.event_name }}</div>
 
-<p style="font-size:16px;color:#6b7280;">
-Enter the email address used when creating your event.
-</p>
+                <div class="result-meta">
+                  {% if e.club_name %}
+                    Club: {{ e.club_name }}<br>
+                  {% endif %}
+                  {% if e.package_type %}
+                    Package: {{ e.package_type }}<br>
+                  {% endif %}
+                  {% if e.access_type %}
+                    Brand: {{ e.access_type }}<br>
+                  {% endif %}
+                  Event ID: <code>{{ e.event_id }}</code>
+                </div>
 
-<form method="post" action="/return">
+                <div style="text-align:left;">
+                  <a href="{{ e.link }}" target="_blank" class="btn-link">
+                    Open event
+                  </a>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+    </div>
 
-<input
-type="email"
-name="email"
-placeholder="your@email.com"
-required
->
+    <footer>
+      © 2026 Equizard &amp; Roland Thompson. All rights reserved.<br>
+      This site and all associated software, graphics and content relating to TriWizard, TetWizard and EventingWizard are protected by copyright.
+    </footer>
 
-<button class="btn">
-Find my event
-</button>
-
-</form>
-
-</div>
-
-
-<footer>
-
-© 2026 Equizard & Roland Thompson. All rights reserved.<br>
-This site and all associated software, graphics and content relating to TriWizard, TetWizard and EventingWizard are protected by copyright.
-
-</footer>
-
-</div>
-
+  </div>
 </body>
 </html>
