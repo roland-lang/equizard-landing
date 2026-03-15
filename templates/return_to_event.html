@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Return to your event{% endblock %}
+
+{% block content %}
+
+<h1>Return to your event</h1>
+
+<div class="card">
+
+<p class="muted">
+Enter the email address used when your event was created.
+</p>
+
+<form method="post" action="/return">
+
+<div style="margin-top:1rem;">
+<label>Email address</label>
+
+<input
+type="email"
+name="email"
+value="{{ email }}"
+required
+style="width:100%; padding:0.6rem; margin-top:0.3rem;"
+>
+
+</div>
+
+<button class="btn" style="margin-top:1rem;">
+Find my events
+</button>
+
+</form>
+
+</div>
+
+
+{% if events %}
+
+<div class="card" style="margin-top:1rem;">
+
+<h2>Your events</h2>
+
+<ul>
+
+{% for e in events %}
+
+<li style="margin-top:0.5rem;">
+
+<strong>{{ e.event_name }}</strong>
+
+<br>
+
+<a href="{{ e.link }}" target="_blank">
+Open event
+</a>
+
+</li>
+
+{% endfor %}
+
+</ul>
+
+</div>
+
+{% endif %}
+
+{% endblock %}
