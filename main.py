@@ -9,8 +9,7 @@ from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from equizard_app.routers import return_to_event
-app.include_router(return_to_event.router)
+
 
 app = FastAPI(title="Equizard")
 
