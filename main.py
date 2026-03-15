@@ -78,9 +78,43 @@ def _create_event_in_triwizard(
     return launch_url
 
 
+def _get_return_links_from_triwizard(contact_email: str) -> list[dict]:
+    return_url = _required_env("TRIWIZARD_RETURN_URL")
+    shared_secret = _required_env("PORTAL_SHARED_SECRET")
+
+    form_data = urllib.parse.urlencode(
+        {
+            "contact_email": (contact_email or "").strip(),
+        }
+    ).encode("utf-8")
+
+    req = urllib.request.Request(
+        return_url,
+        data=form_data,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-Portal-Secret": shared_secret,
+        },
+        method="POST",
+    )
+
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        payload = json.loads(resp.read().decode("utf-8"))
+
+    return (payload or {}).get("links") or []
+
+
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "events": [],
+            "email": "",
+            "message": "",
+        },
+    )
 
 
 @app.get("/triwizard", response_class=HTMLResponse)
@@ -129,6 +163,48 @@ def start_wizard(
     )
 
     return RedirectResponse(url=launch_url, status_code=303)
+
+
+@app.get("/return", response_class=HTMLResponse)
+def return_form(request: Request):
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "events": [],
+            "email": "",
+            "message": "",
+        },
+    )
+
+
+@app.post("/return", response_class=HTMLResponse)
+def return_lookup(
+    request: Request,
+    email: str = Form(""),
+):
+    email = (email or "").strip()
+    events: list[dict] = []
+    message = ""
+
+    if email:
+        try:
+            events = _get_return_links_from_triwizard(email)
+        except Exception:
+            message = "Unable to retrieve events at the moment."
+
+    if email and not events and not message:
+        message = "No events were found for that email address."
+
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "events": events,
+            "email": email,
+            "message": message,
+        },
+    )
 
 
 @app.get("/eventingwizard")
