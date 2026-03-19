@@ -95,20 +95,56 @@
         {% endif %}
       </div>
 
-      <form action="/start-wizard" method="post">
-        <input type="hidden" name="wizard" value="{{ wizard }}">
+      <form id="createForm" action="/start-wizard" method="post">
+  <input type="hidden" name="wizard" value="{{ wizard }}">
 
-        <label for="event_name">Event name</label>
-        <input id="event_name" name="event_name" type="text" required>
+  <label for="event_name">Event name</label>
+  <input id="event_name" name="event_name" type="text" required>
 
-        <label for="club_name">Club / organiser</label>
-        <input id="club_name" name="club_name" type="text" required>
+  <label for="club_name">Club / organiser</label>
+  <input id="club_name" name="club_name" type="text" required>
 
-        <label for="contact_email">Contact email</label>
-        <input id="contact_email" name="contact_email" type="email" required>
+  <label for="contact_email">Contact email</label>
+  <input id="contact_email" name="contact_email" type="email" required>
 
-        <button type="submit" class="btn">Create event and continue</button>
-      </form>
+  <button id="submitBtn" type="submit" class="btn">
+    Create event and continue
+  </button>
+
+  <div id="submitStatus" class="muted" style="margin-top:12px; display:none;">
+    Creating your event and opening {{ wizard_title }}…
+  </div>
+</form>
+
+<script>
+  (function () {
+    const form = document.getElementById("createForm");
+    const btn = document.getElementById("submitBtn");
+    const status = document.getElementById("submitStatus");
+
+    let submitted = false;
+
+    if (!form || !btn) return;
+
+    form.addEventListener("submit", function (event) {
+      if (submitted) {
+        event.preventDefault();
+        return false;
+      }
+
+      submitted = true;
+
+      btn.disabled = true;
+      btn.style.opacity = "0.6";
+      btn.style.cursor = "not-allowed";
+      btn.textContent = "Creating event…";
+
+      if (status) {
+        status.style.display = "block";
+      }
+    });
+  })();
+</script>
 
       <a class="back" href="/">← Back to Equizard</a>
     </div>
