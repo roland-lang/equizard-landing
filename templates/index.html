@@ -94,6 +94,13 @@
       text-align:center;
     }
 
+    .return-box h3{
+      margin:18px 0 8px 0;
+      font-size:18px;
+      text-align:center;
+      color:#111827;
+    }
+
     .return-box p{
       margin:0;
     }
@@ -227,6 +234,12 @@
       border-color:#fca5a5;
     }
 
+    .divider{
+      margin:24px 0 10px 0;
+      border-top:1px solid #e5e7eb;
+      padding-top:18px;
+    }
+
     footer{
       margin-top:40px;
       font-size:14px;
@@ -336,48 +349,54 @@
           </ul>
         </div>
       {% endif %}
-    </div>
 
-    <div class="return-box">
-      <h2>Cannot access my event?</h2>
+      <div class="divider">
+        <h3>Cannot access my event?</h3>
 
-      <p style="font-size:16px;color:#6b7280;text-align:center;">
-        If you are having trouble getting back into your event, complete this form and we will be alerted automatically.
-      </p>
+        <p style="font-size:16px;color:#6b7280;text-align:center;">
+          If you are having trouble getting back into your event, complete this form and we will be alerted automatically.
+        </p>
 
-        <form method="post" action="https://triwizard.co.uk/portal/help-access">  
-        <input
-          type="text"
-          name="name"
-          placeholder="Your name"
-          required
-        >
+        <form method="post" action="https://triwizard.co.uk/portal/help-access">
+          <input
+            type="text"
+            name="name"
+            placeholder="Your name"
+            required
+          >
 
-        <input
-          type="email"
-          name="email"
-          placeholder="Email address used for the event"
-          required
-        >
+          <input
+            type="email"
+            name="email"
+            placeholder="Email address used for the event"
+            required
+          >
 
-        <input
-          type="text"
-          name="event_name"
-          placeholder="Event name (if known)"
-        >
+          <input
+            type="text"
+            name="phone"
+            placeholder="Phone number"
+          >
 
-        <textarea
-          name="message"
-          placeholder="Briefly describe the problem"
-          rows="5"
-        ></textarea>
+          <input
+            type="text"
+            name="event_name"
+            placeholder="Event name (if known)"
+          >
 
-        <div style="text-align:center;">
-          <button class="btn" type="submit">
-            Send help request
-          </button>
-        </div>
-      </form>
+          <textarea
+            name="message"
+            placeholder="Briefly describe the problem"
+            rows="5"
+          ></textarea>
+
+          <div style="text-align:center;">
+            <button class="btn" type="submit">
+              Send help request
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <footer>
