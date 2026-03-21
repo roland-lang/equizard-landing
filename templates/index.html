@@ -98,7 +98,8 @@
       margin:0;
     }
 
-    .return-box input{
+    .return-box input,
+    .return-box textarea{
       width:100%;
       padding:12px;
       border-radius:8px;
@@ -106,6 +107,7 @@
       font-size:16px;
       margin-top:10px;
       box-sizing:border-box;
+      font-family:'Montserrat',Arial,sans-serif;
     }
 
     .btn{
@@ -325,21 +327,57 @@
                 </div>
 
                 <div style="text-align:left;">
-                  {% if e.event_status == "expired" %}
-                    <a href="{{ e.access_url }}" target="_blank" class="btn-link">
-                      Open event
-                    </a>
-                  {% else %}
-                    <a href="{{ e.access_url }}" target="_blank" class="btn-link">
-                      Open event
-                    </a>
-                  {% endif %}
+                  <a href="{{ e.access_url }}" target="_blank" class="btn-link">
+                    Open event
+                  </a>
                 </div>
               </li>
             {% endfor %}
           </ul>
         </div>
       {% endif %}
+    </div>
+
+    <div class="return-box">
+      <h2>Cannot access my event?</h2>
+
+      <p style="font-size:16px;color:#6b7280;text-align:center;">
+        If you are having trouble getting back into your event, send a help request below.
+      </p>
+
+      <form method="post" action="/portal/help-access">
+        <input
+          type="text"
+          name="name"
+          placeholder="Your name"
+          required
+        >
+
+        <input
+          type="email"
+          name="email"
+          placeholder="Email address used for the event"
+          required
+        >
+
+        <input
+          type="text"
+          name="event_name"
+          placeholder="Event name (if known)"
+        >
+
+        <textarea
+          name="message"
+          placeholder="Briefly describe the problem"
+          rows="5"
+        ></textarea>
+
+        <div style="text-align:center;">
+          <button class="btn" type="submit">
+            Send help request
+          </button>
+        </div>
+      </form>
     </div>
 
     <footer>
