@@ -4,8 +4,8 @@ import json
 import os
 import urllib.parse
 import urllib.request
-import stripe
 
+import stripe
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -92,6 +92,8 @@ def _create_event_in_triwizard(
         raise RuntimeError("TriWizard bridge did not return a launch URL")
 
     return launch_url
+
+
 # -----------------------------------------------------
 # Bridge: get return links
 # -----------------------------------------------------
@@ -208,7 +210,7 @@ def start_wizard(
 
 
 # -----------------------------------------------------
-# Payment page (TEMPLATE VERSION ONLY)
+# Payment page
 # -----------------------------------------------------
 @app.get("/payment", response_class=HTMLResponse)
 def payment_page(
@@ -270,21 +272,25 @@ def create_checkout_session(
     if not amount:
         return RedirectResponse("/", status_code=303)
 
+    base_url = _required_env("BASE_URL")
+
     session = stripe.checkout.Session.create(
         payment_method_types=["card"],
         mode="payment",
-        line_items=[{
-            "price_data": {
-                "currency": "gbp",
-                "product_data": {
-                    "name": f"{wizard.capitalize()} {licence.replace('_',' ')} access",
+        line_items=[
+            {
+                "price_data": {
+                    "currency": "gbp",
+                    "product_data": {
+                        "name": f"{wizard.capitalize()} {licence.replace('_', ' ')} access",
+                    },
+                    "unit_amount": amount,
                 },
-                "unit_amount": amount,
-            },
-            "quantity": 1,
-        }],
-        success_url=f"{_required_env('BASE_URL')}/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
-        cancel_url=f"{_required_env('BASE_URL')}/payment",
+                "quantity": 1,
+            }
+        ],
+        success_url=f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{base_url}/payment?{urllib.parse.urlencode({'wizard': wizard, 'event_name': event_name, 'club_name': club_name, 'contact_email': contact_email, 'licence': licence})}",
         metadata={
             "wizard": wizard,
             "event_name": event_name,
@@ -330,10 +336,11 @@ def payment_success(request: Request, session_id: str | None = None):
     )
 
     return RedirectResponse(launch_url, status_code=303)
+
+
 # -----------------------------------------------------
 # Return flow
 # -----------------------------------------------------
-
 @app.get("/return", response_class=HTMLResponse)
 def return_form(request: Request):
     return templates.TemplateResponse(
@@ -347,9 +354,6 @@ def return_form(request: Request):
     )
 
 
-@app.post("/return", response_class=HTMLResponse)
-def return_lookup(request: Request, email: str = Form("")):
-    ...
 @app.post("/return", response_class=HTMLResponse)
 def return_lookup(request: Request, email: str = Form("")):
     email = (email or "").strip()
