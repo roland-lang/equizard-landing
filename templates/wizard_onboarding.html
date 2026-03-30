@@ -39,8 +39,7 @@
       margin-top:16px;
       margin-bottom:6px;
     }
-    input,
-    select{
+    input{
       width:100%;
       box-sizing:border-box;
       padding:12px 14px;
@@ -48,7 +47,6 @@
       border-radius:10px;
       font-size:16px;
       background:#fff;
-      font-family:'Montserrat', Arial, sans-serif;
     }
     .summary{
       margin-top:18px;
@@ -56,36 +54,6 @@
       background:#f9fafb;
       border:1px solid #e5e7eb;
       border-radius:12px;
-      line-height:1.6;
-    }
-    .pricing-box{
-      margin-top:18px;
-      padding:14px 16px;
-      background:#f9fbff;
-      border:1px solid #dbe5f3;
-      border-radius:12px;
-    }
-    .pricing-box h3{
-      margin:0 0 10px 0;
-      font-size:18px;
-    }
-    .pricing-list{
-      list-style:none;
-      padding:0;
-      margin:0;
-      display:grid;
-      gap:10px;
-    }
-    .pricing-list li{
-      font-size:15px;
-      line-height:1.5;
-      color:#374151;
-      border-bottom:1px solid #e5e7eb;
-      padding-bottom:10px;
-    }
-    .pricing-list li:last-child{
-      border-bottom:none;
-      padding-bottom:0;
     }
     .btn{
       display:inline-block;
@@ -128,7 +96,7 @@
       <h1>{{ wizard_title }} setup</h1>
 
       <p class="muted">
-        Complete this short form to create your event workspace and continue into {{ wizard_title }}.
+        Complete this short form to create your event workspace and enter the scheduling engine.
       </p>
 
       <div class="summary">
@@ -138,24 +106,6 @@
           Any 3 phases
         {% else %}
           Up to 4 phases
-        {% endif %}
-      </div>
-
-      <div class="pricing-box">
-        <h3>{{ wizard_title }} options</h3>
-
-        {% if wizard == "triwizard" %}
-          <ul class="pricing-list">
-            <li><strong>Option 1 — Free</strong><br>Practice only • Demo data allowed • Upload disabled</li>
-            <li><strong>Option 2 — 2 weeks (£25)</strong><br>Full access for 2 weeks</li>
-            <li><strong>Option 3 — 1 month (£35)</strong><br>Extended full access for 1 month</li>
-          </ul>
-        {% elif wizard == "tetwizard" %}
-          <ul class="pricing-list">
-            <li><strong>Option 1 — Free</strong><br>Practice only • Demo data allowed • Upload disabled</li>
-            <li><strong>Option 2 — 2 weeks (£35)</strong><br>Full access for 2 weeks</li>
-            <li><strong>Option 3 — 1 month (£45)</strong><br>Extended full access for 1 month</li>
-          </ul>
         {% endif %}
       </div>
 
@@ -171,17 +121,13 @@
         <label for="contact_email">Contact email</label>
         <input id="contact_email" name="contact_email" type="email" required>
 
-        <label for="licence">Choose your access option</label>
-        <select id="licence" name="licence" required>
-          <option value="free">Free (demo only)</option>
-          <option value="2_week">2 weeks – full access</option>
-          <option value="1_month">1 month – full access</option>
-        </select>
+        <label for="competition_date">Date of event</label>
+        <input id="competition_date" name="competition_date" type="date" required>
 
         <button id="submitBtn" type="submit" class="btn">Continue</button>
 
         <div id="statusBox" class="status">
-          Preparing your {{ wizard_title }} workspace…
+          Preparing {{ wizard_title }}…
         </div>
       </form>
 
@@ -194,28 +140,8 @@
       const form = document.getElementById("createForm");
       const btn = document.getElementById("submitBtn");
       const status = document.getElementById("statusBox");
-      const licence = document.getElementById("licence");
 
       let submitted = false;
-
-      function updateButtonText() {
-        if (!btn || !licence) return;
-
-        if (licence.value === "free") {
-          btn.textContent = "Continue with Free";
-        } else if (licence.value === "2_week") {
-          btn.textContent = "Continue to Payment";
-        } else if (licence.value === "1_month") {
-          btn.textContent = "Continue to Payment";
-        } else {
-          btn.textContent = "Continue";
-        }
-      }
-
-      if (licence) {
-        licence.addEventListener("change", updateButtonText);
-        updateButtonText();
-      }
 
       if (!form || !btn) return;
 
@@ -227,12 +153,7 @@
 
         submitted = true;
         btn.disabled = true;
-
-        if (licence && licence.value === "free") {
-          btn.textContent = "Creating event…";
-        } else {
-          btn.textContent = "Continuing to payment…";
-        }
+        btn.textContent = "Continuing…";
 
         if (status) {
           status.style.display = "block";
