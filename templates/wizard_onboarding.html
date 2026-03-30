@@ -3,160 +3,570 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{ wizard_title }} Setup – Equizard</title>
+  <title>Equizard</title>
 
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
 
   <style>
     body{
       margin:0;
-      font-family:'Montserrat', Arial, sans-serif;
+      font-family:'Montserrat',Arial,sans-serif;
+      text-align:center;
+      padding:28px 18px 50px;
       background:#f6f7fb;
       color:#111827;
-      padding:24px 16px 40px;
+      font-size:20px;
+      -webkit-text-size-adjust:100%;
     }
+
     .wrap{
-      max-width:760px;
+      max-width:1180px;
       margin:0 auto;
     }
+
+    .brand img{
+      max-width:380px;
+      width:100%;
+      height:auto;
+    }
+
+    .sub{
+      color:#4b5563;
+      margin:12px 0 18px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:18px;
+      margin-top:22px;
+      align-items:stretch;
+    }
+
+    @media(max-width:980px){
+      .grid{
+        grid-template-columns:1fr;
+      }
+    }
+
     .card{
       background:#fff;
-      border:1px solid #e5e7eb;
+      border:1px solid #e6e8ef;
+      border-radius:18px;
+      padding:18px;
+      text-align:left;
+      box-shadow:0 8px 24px rgba(17,24,39,0.05);
+    }
+
+    .card-top{
+      text-align:center;
+      margin-bottom:12px;
+    }
+
+    .card-top img{
+      width:100%;
+      max-width:340px;
+      height:auto;
+      display:block;
+      margin:0 auto 10px;
+    }
+
+    .product-blurb{
+      color:#4b5563;
+      font-size:15px;
+      line-height:1.5;
+      text-align:center;
+      margin:8px 0 14px;
+      min-height:46px;
+    }
+
+    .pricing-box{
+      background:#f9fbff;
+      border:1px solid #dbe5f3;
+      border-radius:14px;
+      padding:14px;
+      margin:10px 0 14px;
+    }
+
+    .pricing-title{
+      font-size:16px;
+      font-weight:700;
+      margin:0 0 10px;
+      text-align:center;
+      color:#111827;
+    }
+
+    .pricing-list{
+      list-style:none;
+      padding:0;
+      margin:0;
+      display:grid;
+      gap:8px;
+    }
+
+    .pricing-item{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:flex-start;
+      font-size:14px;
+      color:#374151;
+      line-height:1.4;
+      border-bottom:1px solid #e5e7eb;
+      padding-bottom:8px;
+    }
+
+    .pricing-item:last-child{
+      border-bottom:none;
+      padding-bottom:0;
+    }
+
+    .pricing-label{
+      font-weight:600;
+      color:#111827;
+    }
+
+    .pricing-price{
+      white-space:nowrap;
+      font-weight:700;
+      color:#1d4ed8;
+    }
+
+    .choose-wrap{
+      text-align:center;
+      margin-top:14px;
+    }
+
+    .choose-btn{
+      display:inline-block;
+      text-decoration:none;
+      background:#2563eb;
+      color:#fff !important;
+      padding:12px 18px;
+      border-radius:10px;
+      font-size:16px;
+      font-weight:700;
+    }
+
+    .choose-btn:hover{
+      background:#1d4ed8;
+    }
+
+    .choose-btn.disabled{
+      background:#9ca3af;
+      cursor:not-allowed;
+      pointer-events:none;
+    }
+
+    .meta{
+      color:#6b7280;
+      font-size:14px;
+      margin-top:10px;
+      text-align:center;
+    }
+
+    .return-box{
+      margin-top:40px;
+      background:#fff;
+      border:1px solid #e6e8ef;
       border-radius:16px;
       padding:22px;
-      box-shadow:0 4px 18px rgba(17,24,39,0.05);
+      max-width:760px;
+      margin-left:auto;
+      margin-right:auto;
+      text-align:left;
     }
-    h1{
+
+    .return-box h2{
       margin-top:0;
-      margin-bottom:10px;
+      margin-bottom:8px;
+      font-size:22px;
+      text-align:center;
     }
-    .muted{
-      color:#6b7280;
+
+    .return-box h3{
+      margin:18px 0 8px 0;
+      font-size:18px;
+      text-align:center;
+      color:#111827;
     }
-    label{
-      display:block;
-      font-weight:600;
-      margin-top:16px;
-      margin-bottom:6px;
+
+    .return-box p{
+      margin:0;
     }
-    input{
+
+    .return-box input,
+    .return-box textarea{
       width:100%;
-      box-sizing:border-box;
-      padding:12px 14px;
+      padding:12px;
+      border-radius:8px;
       border:1px solid #d1d5db;
-      border-radius:10px;
       font-size:16px;
-      background:#fff;
+      margin-top:10px;
+      box-sizing:border-box;
+      font-family:'Montserrat',Arial,sans-serif;
     }
-    .summary{
-      margin-top:18px;
-      padding:14px 16px;
-      background:#f9fafb;
-      border:1px solid #e5e7eb;
-      border-radius:12px;
-    }
+
     .btn{
-      display:inline-block;
-      margin-top:20px;
-      padding:12px 18px;
+      margin-top:14px;
+      background:#2563eb;
       border:none;
-      border-radius:10px;
-      background:#111827;
-      color:#fff;
-      font-weight:700;
+      color:white;
+      padding:12px 18px;
+      border-radius:8px;
       font-size:16px;
       cursor:pointer;
-    }
-    .btn:disabled{
-      opacity:0.6;
-      cursor:not-allowed;
-    }
-    .back{
-      display:inline-block;
-      margin-top:18px;
-      color:#374151;
-      text-decoration:none;
+      font-family:'Montserrat',Arial,sans-serif;
       font-weight:600;
     }
-    .status{
-      margin-top:12px;
+
+    .btn:hover{
+      background:#1d4ed8;
+    }
+
+    .btn-link{
+      display:inline-block;
+      margin-top:10px;
+      background:#2563eb;
+      color:#fff !important;
+      padding:10px 14px;
+      border-radius:8px;
+      font-size:15px;
+      font-weight:600;
+      text-decoration:none !important;
+    }
+
+    .btn-link:hover{
+      background:#1d4ed8;
+    }
+
+    .btn-link.disabled{
+      background:#9ca3af;
+      cursor:not-allowed;
+      pointer-events:none;
+    }
+
+    .lookup-message{
+      margin-top:16px;
       padding:12px 14px;
+      border-radius:10px;
       background:#f9fafb;
       border:1px solid #e5e7eb;
-      border-radius:10px;
-      font-size:15px;
       color:#4b5563;
-      display:none;
+      font-size:15px;
+      text-align:center;
+    }
+
+    .results{
+      margin-top:18px;
+    }
+
+    .results h3{
+      margin:0 0 12px 0;
+      font-size:20px;
+      text-align:center;
+    }
+
+    .result-list{
+      list-style:none;
+      padding:0;
+      margin:0;
+      display:grid;
+      gap:12px;
+    }
+
+    .result-item{
+      border:1px solid #e6e8ef;
+      border-radius:12px;
+      padding:14px;
+      background:#f9fbff;
+    }
+
+    .result-title{
+      font-size:18px;
+      font-weight:700;
+      margin-bottom:6px;
+      text-align:left;
+    }
+
+    .result-meta{
+      font-size:14px;
+      color:#6b7280;
+      text-align:left;
+      line-height:1.5;
+    }
+
+    .status-pill{
+      display:inline-block;
+      margin-top:8px;
+      padding:4px 10px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:700;
+      border:1px solid transparent;
+    }
+
+    .status-active{
+      background:#dcfce7;
+      color:#166534;
+      border-color:#86efac;
+    }
+
+    .status-expired{
+      background:#fef3c7;
+      color:#92400e;
+      border-color:#fcd34d;
+    }
+
+    .status-closed{
+      background:#fee2e2;
+      color:#991b1b;
+      border-color:#fca5a5;
+    }
+
+    .divider{
+      margin:24px 0 10px 0;
+      border-top:1px solid #e5e7eb;
+      padding-top:18px;
+    }
+
+    footer{
+      margin-top:40px;
+      font-size:14px;
+      color:#6b7280;
     }
   </style>
 </head>
+
 <body>
   <div class="wrap">
-    <div class="card">
-      <h1>{{ wizard_title }} setup</h1>
 
-      <p class="muted">
-        Complete this short form to create your event workspace and enter the scheduling engine.
-      </p>
+    <div class="brand">
+      <img src="/static/equizard-logo.png" alt="Equizard logo">
+    </div>
 
-      <div class="summary">
-        <strong>Selected product:</strong> {{ wizard_title }}<br>
-        <strong>Package:</strong>
-        {% if package_type == "triathlon" %}
-          Any 3 phases
-        {% else %}
-          Up to 4 phases
-        {% endif %}
+    <div class="sub">Wizard tools for equestrian events</div>
+    <div class="sub">Choose a wizard to quickly and easily set up your competition.</div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-top">
+          <img src="/static/triwizard-logo.png" alt="TriWizard logo">
+        </div>
+
+        <div class="product-blurb">
+          Ideal for competitions with up to 3 phases.
+        </div>
+
+        <div class="pricing-box">
+          <div class="pricing-title">TriWizard pricing</div>
+          <ul class="pricing-list">
+            <li class="pricing-item">
+              <span><span class="pricing-label">Option 1 — Free</span><br>Practice only • Demo data allowed • Upload disabled</span>
+              <span class="pricing-price">£0</span>
+            </li>
+            <li class="pricing-item">
+              <span><span class="pricing-label">Option 2 — 2 weeks</span><br>Full access for 2 weeks</span>
+              <span class="pricing-price">£25</span>
+            </li>
+            <li class="pricing-item">
+              <span><span class="pricing-label">Option 3 — 1 month</span><br>Extended full access for 1 month</span>
+              <span class="pricing-price">£35</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="choose-wrap">
+          <a href="/triwizard" class="choose-btn">Choose TriWizard</a>
+        </div>
+
+        <div class="meta">Screenshots • Pricing • Enter</div>
       </div>
 
-      <form id="createForm" action="/start-wizard" method="post">
-        <input type="hidden" name="wizard" value="{{ wizard }}">
+      <div class="card">
+        <div class="card-top">
+          <img src="/static/tetwizard-logo.png" alt="TetWizard logo">
+        </div>
 
-        <label for="event_name">Event name</label>
-        <input id="event_name" name="event_name" type="text" required>
+        <div class="product-blurb">
+          Designed for full 4-phase tetrathlon competitions.
+        </div>
 
-        <label for="club_name">Club / organiser</label>
-        <input id="club_name" name="club_name" type="text" required>
+        <div class="pricing-box">
+          <div class="pricing-title">TetWizard pricing</div>
+          <ul class="pricing-list">
+            <li class="pricing-item">
+              <span><span class="pricing-label">Option 1 — Free</span><br>Practice only • Demo data allowed • Upload disabled</span>
+              <span class="pricing-price">£0</span>
+            </li>
+            <li class="pricing-item">
+              <span><span class="pricing-label">Option 2 — 2 weeks</span><br>Full access for 2 weeks</span>
+              <span class="pricing-price">£35</span>
+            </li>
+            <li class="pricing-item">
+              <span><span class="pricing-label">Option 3 — 1 month</span><br>Extended full access for 1 month</span>
+              <span class="pricing-price">£45</span>
+            </li>
+          </ul>
+        </div>
 
-        <label for="contact_email">Contact email</label>
-        <input id="contact_email" name="contact_email" type="email" required>
+        <div class="choose-wrap">
+          <a href="/tetwizard" class="choose-btn">Choose TetWizard</a>
+        </div>
 
-        <button id="submitBtn" type="submit" class="btn">Create event and continue</button>
+        <div class="meta">Screenshots • Pricing • Enter</div>
+      </div>
 
-        <div id="statusBox" class="status">
-          Creating your event and opening {{ wizard_title }}…
+      <div class="card">
+        <div class="card-top">
+          <img src="/static/eventingwizard-logo.png" alt="EventingWizard logo">
+        </div>
+
+        <div class="product-blurb">
+          Tools for eventing competitions. Pricing and access options to be confirmed.
+        </div>
+
+        <div class="pricing-box">
+          <div class="pricing-title">EventingWizard</div>
+          <ul class="pricing-list">
+            <li class="pricing-item">
+              <span><span class="pricing-label">Coming soon</span><br>Product details and pricing will be announced here.</span>
+              <span class="pricing-price">—</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="choose-wrap">
+          <a href="/eventingwizard" class="choose-btn">Choose EventingWizard</a>
+        </div>
+
+        <div class="meta">Screenshots • Pricing • Enter</div>
+      </div>
+    </div>
+
+    <div class="return-box">
+      <h2>Returning organiser</h2>
+
+      <p style="font-size:16px;color:#6b7280;text-align:center;">
+        Enter the email address used when creating your event.
+      </p>
+
+      <form method="post" action="/return">
+        <input
+          type="email"
+          name="email"
+          placeholder="your@email.com"
+          value="{{ email or '' }}"
+          required
+        >
+
+        <div style="text-align:center;">
+          <button class="btn" type="submit">
+            Find my event
+          </button>
         </div>
       </form>
 
-      <a class="back" href="/">← Back to Equizard</a>
+      {% if message %}
+        <div class="lookup-message">
+          {{ message }}
+        </div>
+      {% endif %}
+
+      {% if events %}
+        <div class="results">
+          <h3>Your events</h3>
+
+          <ul class="result-list">
+            {% for e in events %}
+              <li class="result-item">
+                <div class="result-title">{{ e.event_name }}</div>
+
+                <div class="result-meta">
+                  {% if e.product_name %}
+                    Product: {{ e.product_name }}<br>
+                  {% endif %}
+                  {% if e.access_type %}
+                    Brand: {{ e.access_type }}<br>
+                  {% endif %}
+                  {% if e.event_id %}
+                    Event ID: <code>{{ e.event_id }}</code><br>
+                  {% endif %}
+
+                  {% if e.event_status == "active" %}
+                    <span class="status-pill status-active">Active</span>
+                  {% elif e.event_status == "expired" or e.event_status == "ended" %}
+                    <span class="status-pill status-expired">Expired</span>
+                  {% elif e.event_status == "closed" %}
+                    <span class="status-pill status-closed">Closed</span>
+                  {% endif %}
+                </div>
+
+                <div style="text-align:left;">
+                  <a href="{{ e.access_url }}" target="_blank" class="btn-link">
+                    Open event
+                  </a>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+
+      <div class="divider">
+        <h3>Cannot access my event?</h3>
+
+        <p style="font-size:16px;color:#6b7280;text-align:center;">
+          If you are having trouble getting back into your event, complete this form and we will be alerted automatically.
+        </p>
+
+        <form method="post" action="https://triwizard.co.uk/portal/help-access">
+          <input
+            type="text"
+            name="name"
+            placeholder="Your name"
+            required
+          >
+
+          <input
+            type="email"
+            name="email"
+            placeholder="Email address used for the event"
+            required
+          >
+
+          <input
+            type="text"
+            name="phone"
+            placeholder="Phone number"
+          >
+
+          <input
+            type="text"
+            name="event_name"
+            placeholder="Event name (if known)"
+          >
+
+          <textarea
+            name="message"
+            placeholder="Briefly describe the problem"
+            rows="5"
+          ></textarea>
+
+          <div style="text-align:center;">
+            <button class="btn" type="submit">
+              Send help request
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
+
+    <footer>
+      © 2026 Equizard &amp; Roland Thompson. All rights reserved.<br>
+      This site and all associated software, graphics and content relating to TriWizard, TetWizard and EventingWizard are protected by copyright.
+    </footer>
+
   </div>
-
-  <script>
-    (function () {
-      const form = document.getElementById("createForm");
-      const btn = document.getElementById("submitBtn");
-      const status = document.getElementById("statusBox");
-
-      let submitted = false;
-
-      if (!form || !btn) return;
-
-      form.addEventListener("submit", function (event) {
-        if (submitted) {
-          event.preventDefault();
-          return false;
-        }
-
-        submitted = true;
-        btn.disabled = true;
-        btn.textContent = "Creating event…";
-
-        if (status) {
-          status.style.display = "block";
-        }
-      });
-    })();
-  </script>
 </body>
 </html>
