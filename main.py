@@ -319,13 +319,21 @@ def payment_success(request: Request, session_id: str | None = None):
             status_code=303,
         )
 
-    meta = session.metadata or {}
+    # Make metadata safely into a normal dict
+    try:
+        raw_meta = getattr(session, "metadata", None)
+        meta = dict(raw_meta) if raw_meta else {}
+    except Exception as e:
+        return RedirectResponse(
+            url=f"/?message=Stripe+metadata+error:+{urllib.parse.quote_plus(str(e))}",
+            status_code=303,
+        )
 
-    wizard = (meta.get("wizard") or "").strip().lower()
-    event_name = (meta.get("event_name") or "").strip()
-    club_name = (meta.get("club_name") or "").strip()
-    contact_email = (meta.get("contact_email") or "").strip()
-    licence = (meta.get("licence") or "").strip().lower()
+    wizard = str(meta.get("wizard") or "").strip().lower()
+    event_name = str(meta.get("event_name") or "").strip()
+    club_name = str(meta.get("club_name") or "").strip()
+    contact_email = str(meta.get("contact_email") or "").strip()
+    licence = str(meta.get("licence") or "").strip().lower()
 
     if wizard not in {"triwizard", "tetwizard"}:
         return RedirectResponse("/?message=Invalid+wizard+metadata", status_code=303)
@@ -349,8 +357,6 @@ def payment_success(request: Request, session_id: str | None = None):
         )
 
     return RedirectResponse(launch_url, status_code=303)
-
-
 # -----------------------------------------------------
 # Return flow
 # -----------------------------------------------------
