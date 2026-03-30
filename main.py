@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -34,6 +35,10 @@ def _package_for_wizard(wizard: str) -> str:
 
 def _title_for_wizard(wizard: str) -> str:
     return "TetWizard" if wizard == "tetwizard" else "TriWizard"
+
+
+def _q(text: object) -> str:
+    return urllib.parse.quote_plus(str(text))
 
 
 # -----------------------------------------------------
@@ -84,12 +89,28 @@ def _create_event_in_triwizard(
         method="POST",
     )
 
-    with urllib.request.urlopen(req, timeout=20) as resp:
-        payload = json.loads(resp.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            raw = resp.read().decode("utf-8")
+    except urllib.error.HTTPError as e:
+        try:
+            body = e.read().decode("utf-8")
+        except Exception:
+            body = e.reason
+        raise RuntimeError(f"Bridge HTTP {e.code}: {body}") from e
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Bridge URL error: {e.reason}") from e
+    except Exception as e:
+        raise RuntimeError(f"Bridge request failed: {e}") from e
+
+    try:
+        payload = json.loads(raw)
+    except Exception as e:
+        raise RuntimeError(f"Bridge returned invalid JSON: {raw[:300]}") from e
 
     launch_url = (payload or {}).get("launch_url") or ""
     if not launch_url:
-        raise RuntimeError("TriWizard bridge did not return a launch URL")
+        raise RuntimeError(f"TriWizard bridge did not return a launch URL: {payload}")
 
     return launch_url
 
@@ -195,10 +216,7 @@ def start_wizard(
             )
             return RedirectResponse(launch_url, status_code=303)
         except Exception as e:
-            return RedirectResponse(
-                f"/?message={urllib.parse.quote_plus(str(e))}",
-                status_code=303,
-            )
+            return RedirectResponse(f"/?message={_q(e)}", status_code=303)
 
     query = urllib.parse.urlencode(
         {
@@ -209,7 +227,6 @@ def start_wizard(
             "licence": licence,
         }
     )
-
     return RedirectResponse(f"/payment?{query}", status_code=303)
 
 
@@ -229,7 +246,6 @@ def payment_page(
     licence = (licence or "").strip().lower()
 
     wizard_title = _title_for_wizard(wizard or "triwizard")
-
     licence_label = {
         "2_week": "2-week access",
         "1_month": "1-month access",
@@ -264,8 +280,11 @@ def create_checkout_session(
     wizard = (wizard or "").strip().lower()
     licence = (licence or "").strip().lower()
 
+    if wizard not in {"triwizard", "tetwizard"}:
+        return RedirectResponse("/?message=Invalid+wizard", status_code=303)
+
     if licence not in {"2_week", "1_month"}:
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/?message=Invalid+licence", status_code=303)
 
     price_map = {
         "triwizard": {"2_week": 2500, "1_month": 3500},
@@ -274,9 +293,12 @@ def create_checkout_session(
 
     amount = price_map.get(wizard, {}).get(licence)
     if not amount:
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/?message=Price+not+found", status_code=303)
 
-    base_url = _required_env("BASE_URL")
+    try:
+        base_url = _required_env("BASE_URL")
+    except Exception as e:
+        return RedirectResponse(f"/?message={_q(e)}", status_code=303)
 
     try:
         session = stripe.checkout.Session.create(
@@ -305,10 +327,7 @@ def create_checkout_session(
             },
         )
     except Exception as e:
-        return RedirectResponse(
-            f"/?message={urllib.parse.quote_plus(str(e))}",
-            status_code=303,
-        )
+        return RedirectResponse(f"/?message=Stripe+checkout+error:+{_q(e)}", status_code=303)
 
     return RedirectResponse(session.url, status_code=303)
 
@@ -321,49 +340,31 @@ def payment_success(request: Request, session_id: str | None = None):
     if not session_id:
         return RedirectResponse("/?message=Missing+payment+session", status_code=303)
 
-    # ----------------------------------
-    # Get Stripe session
-    # ----------------------------------
     try:
         session = stripe.checkout.Session.retrieve(session_id)
     except Exception as e:
-        return RedirectResponse(
-            url=f"/?message=Stripe+session+error:+{urllib.parse.quote_plus(str(e))}",
-            status_code=303,
-        )
+        return RedirectResponse(f"/?message=Stripe+session+error:+{_q(e)}", status_code=303)
 
-    # ----------------------------------
-    # Extract metadata SAFELY
-    # ----------------------------------
     try:
-        meta = session.metadata or {}
+        meta = session.metadata
     except Exception as e:
-        return RedirectResponse(
-            url=f"/?message=Stripe+metadata+error:+{urllib.parse.quote_plus(str(e))}",
-            status_code=303,
-        )
+        return RedirectResponse(f"/?message=Stripe+metadata+access+error:+{_q(e)}", status_code=303)
 
-    # ----------------------------------
-    # Read values
-    # ----------------------------------
-    wizard = (meta.get("wizard") or "").strip().lower()
-    event_name = (meta.get("event_name") or "").strip()
-    club_name = (meta.get("club_name") or "").strip()
-    contact_email = (meta.get("contact_email") or "").strip()
-    licence = (meta.get("licence") or "").strip().lower()
+    try:
+        wizard = (meta["wizard"] or "").strip().lower()
+        event_name = (meta["event_name"] or "").strip()
+        club_name = (meta["club_name"] or "").strip()
+        contact_email = (meta["contact_email"] or "").strip()
+        licence = (meta["licence"] or "").strip().lower()
+    except Exception as e:
+        return RedirectResponse(f"/?message=Stripe+metadata+read+error:+{_q(e)}", status_code=303)
 
-    # ----------------------------------
-    # Validate metadata
-    # ----------------------------------
     if wizard not in {"triwizard", "tetwizard"}:
-        return RedirectResponse("/?message=Invalid+wizard", status_code=303)
+        return RedirectResponse("/?message=Invalid+wizard+metadata", status_code=303)
 
     if licence not in {"2_week", "1_month"}:
-        return RedirectResponse("/?message=Invalid+licence", status_code=303)
+        return RedirectResponse("/?message=Invalid+licence+metadata", status_code=303)
 
-    # ----------------------------------
-    # Call bridge (create event)
-    # ----------------------------------
     try:
         launch_url = _create_event_in_triwizard(
             wizard=wizard,
@@ -374,12 +375,10 @@ def payment_success(request: Request, session_id: str | None = None):
             payment_status="paid",
         )
     except Exception as e:
-        return RedirectResponse(
-            url=f"/?message=Bridge+error:+{urllib.parse.quote_plus(str(e))}",
-            status_code=303,
-        )
+        return RedirectResponse(f"/?message=Bridge+error:+{_q(e)}", status_code=303)
 
     return RedirectResponse(launch_url, status_code=303)
+
 
 # -----------------------------------------------------
 # Return flow
