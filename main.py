@@ -127,14 +127,14 @@ def _get_return_links_from_triwizard(contact_email: str) -> list[dict]:
 # Routes
 # -----------------------------------------------------
 @app.get("/", response_class=HTMLResponse)
-def home(request: Request):
+def home(request: Request, message: str = ""):
     return templates.TemplateResponse(
         request,
         "index.html",
         {
             "events": [],
             "email": "",
-            "message": "",
+            "message": message or "",
         },
     )
 
@@ -185,15 +185,21 @@ def start_wizard(
 
     # FREE FLOW
     if licence == "free":
-        launch_url = _create_event_in_triwizard(
-            wizard=wizard,
-            event_name=event_name.strip(),
-            club_name=club_name.strip(),
-            contact_email=contact_email.strip(),
-            licence="free",
-            payment_status="none",
-        )
-        return RedirectResponse(launch_url, status_code=303)
+        try:
+            launch_url = _create_event_in_triwizard(
+                wizard=wizard,
+                event_name=event_name.strip(),
+                club_name=club_name.strip(),
+                contact_email=contact_email.strip(),
+                licence="free",
+                payment_status="none",
+            )
+            return RedirectResponse(launch_url, status_code=303)
+        except Exception as e:
+            return RedirectResponse(
+                f"/?message={urllib.parse.quote_plus(str(e))}",
+                status_code=303,
+            )
 
     # PAID FLOW
     query = urllib.parse.urlencode(
@@ -274,31 +280,37 @@ def create_checkout_session(
 
     base_url = _required_env("BASE_URL")
 
-    session = stripe.checkout.Session.create(
-        payment_method_types=["card"],
-        mode="payment",
-        line_items=[
-            {
-                "price_data": {
-                    "currency": "gbp",
-                    "product_data": {
-                        "name": f"{wizard.capitalize()} {licence.replace('_', ' ')} access",
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            mode="payment",
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "gbp",
+                        "product_data": {
+                            "name": f"{wizard.capitalize()} {licence.replace('_', ' ')} access",
+                        },
+                        "unit_amount": amount,
                     },
-                    "unit_amount": amount,
-                },
-                "quantity": 1,
-            }
-        ],
-        success_url=f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
-        cancel_url=f"{base_url}/payment?{urllib.parse.urlencode({'wizard': wizard, 'event_name': event_name, 'club_name': club_name, 'contact_email': contact_email, 'licence': licence})}",
-        metadata={
-            "wizard": wizard,
-            "event_name": event_name,
-            "club_name": club_name,
-            "contact_email": contact_email,
-            "licence": licence,
-        },
-    )
+                    "quantity": 1,
+                }
+            ],
+            success_url=f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{base_url}/payment?{urllib.parse.urlencode({'wizard': wizard, 'event_name': event_name, 'club_name': club_name, 'contact_email': contact_email, 'licence': licence})}",
+            metadata={
+                "wizard": wizard,
+                "event_name": event_name,
+                "club_name": club_name,
+                "contact_email": contact_email,
+                "licence": licence,
+            },
+        )
+    except Exception as e:
+        return RedirectResponse(
+            f"/?message={urllib.parse.quote_plus(str(e))}",
+            status_code=303,
+        )
 
     return RedirectResponse(session.url, status_code=303)
 
@@ -319,7 +331,6 @@ def payment_success(request: Request, session_id: str | None = None):
             status_code=303,
         )
 
-    # Make metadata safely into a normal dict
     try:
         raw_meta = getattr(session, "metadata", None)
         meta = dict(raw_meta) if raw_meta else {}
@@ -357,6 +368,8 @@ def payment_success(request: Request, session_id: str | None = None):
         )
 
     return RedirectResponse(launch_url, status_code=303)
+
+
 # -----------------------------------------------------
 # Return flow
 # -----------------------------------------------------
