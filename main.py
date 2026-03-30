@@ -183,15 +183,15 @@ def start_wizard(
 
     # FREE FLOW
     if licence == "free":
-    launch_url = _create_event_in_triwizard(
-        wizard=wizard,
-        event_name=event_name.strip(),
-        club_name=club_name.strip(),
-        contact_email=contact_email.strip(),
-        licence="free",
-        payment_status="none",
-    )
-    return RedirectResponse(launch_url, status_code=303)
+        launch_url = _create_event_in_triwizard(
+            wizard=wizard,
+            event_name=event_name.strip(),
+            club_name=club_name.strip(),
+            contact_email=contact_email.strip(),
+            licence="free",
+            payment_status="none",
+        )
+        return RedirectResponse(launch_url, status_code=303)
 
     # PAID FLOW
     query = urllib.parse.urlencode(
@@ -300,40 +300,56 @@ def create_checkout_session(
 # -----------------------------------------------------
 # Payment success
 # -----------------------------------------------------
-@router.get("/payment-success")
-async def payment_success(request: Request):
-    event_id = get_event_id(request)
+@app.get("/payment-success")
+def payment_success(request: Request, session_id: str | None = None):
+    if not session_id:
+        return RedirectResponse("/", status_code=303)
 
-    settings = settings_service.load_settings(event_id) or {}
+    session = stripe.checkout.Session.retrieve(session_id)
+    meta = session.metadata or {}
 
-    now = datetime.now(timezone.utc)
+    wizard = (meta.get("wizard") or "").strip().lower()
+    event_name = (meta.get("event_name") or "").strip()
+    club_name = (meta.get("club_name") or "").strip()
+    contact_email = (meta.get("contact_email") or "").strip()
+    licence = (meta.get("licence") or "").strip().lower()
 
-    licence = (settings.get("licence_duration") or "1_month").lower()
+    if wizard not in {"triwizard", "tetwizard"}:
+        return RedirectResponse("/", status_code=303)
 
-    # 🧠 Decide duration
-    if licence == "2_week":
-        expires = now + timedelta(days=14)
-    else:
-        expires = now + timedelta(days=30)
+    if licence not in {"2_week", "1_month"}:
+        return RedirectResponse("/", status_code=303)
 
-    # ✅ Activate licence
-    settings.update({
-        "payment_status": "paid",
-        "event_status": "active",
-        "activated_at": now.isoformat(),
-        "expires_at": expires.isoformat(),
-    })
-
-    settings_service.save_settings(event_id, settings)
-
-    return RedirectResponse(
-        url=f"/upload?event_id={event_id}&message=Payment+successful",
-        status_code=303,
+    launch_url = _create_event_in_triwizard(
+        wizard=wizard,
+        event_name=event_name,
+        club_name=club_name,
+        contact_email=contact_email,
+        licence=licence,
+        payment_status="paid",
     )
 
+    return RedirectResponse(launch_url, status_code=303)
 # -----------------------------------------------------
 # Return flow
 # -----------------------------------------------------
+
+@app.get("/return", response_class=HTMLResponse)
+def return_form(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "index.html",
+        {
+            "events": [],
+            "email": "",
+            "message": "",
+        },
+    )
+
+
+@app.post("/return", response_class=HTMLResponse)
+def return_lookup(request: Request, email: str = Form("")):
+    ...
 @app.post("/return", response_class=HTMLResponse)
 def return_lookup(request: Request, email: str = Form("")):
     email = (email or "").strip()
