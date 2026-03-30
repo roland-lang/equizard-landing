@@ -20,7 +20,7 @@
     }
 
     .wrap{
-      max-width:1100px;
+      max-width:1180px;
       margin:0 auto;
     }
 
@@ -40,9 +40,10 @@
       grid-template-columns:repeat(3,minmax(0,1fr));
       gap:18px;
       margin-top:22px;
+      align-items:stretch;
     }
 
-    @media(max-width:900px){
+    @media(max-width:980px){
       .grid{
         grid-template-columns:1fr;
       }
@@ -51,28 +52,117 @@
     .card{
       background:#fff;
       border:1px solid #e6e8ef;
-      border-radius:16px;
-      padding:16px;
+      border-radius:18px;
+      padding:18px;
+      text-align:left;
+      box-shadow:0 8px 24px rgba(17,24,39,0.05);
     }
 
-    .card a{
-      text-decoration:none;
-      color:inherit;
-      display:block;
+    .card-top{
+      text-align:center;
+      margin-bottom:12px;
     }
 
-    .card img{
+    .card-top img{
       width:100%;
-      max-width:360px;
+      max-width:340px;
       height:auto;
       display:block;
       margin:0 auto 10px;
     }
 
+    .product-blurb{
+      color:#4b5563;
+      font-size:15px;
+      line-height:1.5;
+      text-align:center;
+      margin:8px 0 14px;
+      min-height:46px;
+    }
+
+    .pricing-box{
+      background:#f9fbff;
+      border:1px solid #dbe5f3;
+      border-radius:14px;
+      padding:14px;
+      margin:10px 0 14px;
+    }
+
+    .pricing-title{
+      font-size:16px;
+      font-weight:700;
+      margin:0 0 10px;
+      text-align:center;
+      color:#111827;
+    }
+
+    .pricing-list{
+      list-style:none;
+      padding:0;
+      margin:0;
+      display:grid;
+      gap:8px;
+    }
+
+    .pricing-item{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:flex-start;
+      font-size:14px;
+      color:#374151;
+      line-height:1.4;
+      border-bottom:1px solid #e5e7eb;
+      padding-bottom:8px;
+    }
+
+    .pricing-item:last-child{
+      border-bottom:none;
+      padding-bottom:0;
+    }
+
+    .pricing-label{
+      font-weight:600;
+      color:#111827;
+    }
+
+    .pricing-price{
+      white-space:nowrap;
+      font-weight:700;
+      color:#1d4ed8;
+    }
+
+    .choose-wrap{
+      text-align:center;
+      margin-top:14px;
+    }
+
+    .choose-btn{
+      display:inline-block;
+      text-decoration:none;
+      background:#2563eb;
+      color:#fff !important;
+      padding:12px 18px;
+      border-radius:10px;
+      font-size:16px;
+      font-weight:700;
+    }
+
+    .choose-btn:hover{
+      background:#1d4ed8;
+    }
+
+    .choose-btn.disabled{
+      background:#9ca3af;
+      cursor:not-allowed;
+      pointer-events:none;
+    }
+
     .meta{
       color:#6b7280;
-      font-size:15px;
-      margin-top:8px;
+      font-size:14px;
+      margin-top:10px;
+      text-align:center;
     }
 
     .return-box{
@@ -256,28 +346,101 @@
     </div>
 
     <div class="sub">Wizard tools for equestrian events</div>
-    <div class="sub">Choose a wizard to quickly and easily set-up your competition.</div>
+    <div class="sub">Choose a wizard to quickly and easily set up your competition.</div>
 
     <div class="grid">
       <div class="card">
-        <a href="/triwizard">
+        <div class="card-top">
           <img src="/static/triwizard-logo.png" alt="TriWizard logo">
-          <div class="meta">Screenshots • Pricing • Enter</div>
-        </a>
+        </div>
+
+        <div class="product-blurb">
+          Ideal for competitions with up to 3 phases.
+        </div>
+
+        <div class="pricing-box">
+          <div class="pricing-title">TriWizard pricing</div>
+          <ul class="pricing-list">
+            <li class="pricing-item">
+              <span><span class="pricing-label">Option 1 — Free</span><br>Practice only • Demo data allowed • Upload disabled</span>
+              <span class="pricing-price">£0</span>
+            </li>
+            <li class="pricing-item">
+              <span><span class="pricing-label">Option 2 — 2 weeks</span><br>Full access for 2 weeks</span>
+              <span class="pricing-price">£25</span>
+            </li>
+            <li class="pricing-item">
+              <span><span class="pricing-label">Option 3 — 1 month</span><br>Extended full access for 1 month</span>
+              <span class="pricing-price">£35</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="choose-wrap">
+          <a href="/triwizard" class="choose-btn">Choose TriWizard</a>
+        </div>
+
+        <div class="meta">Screenshots • Pricing • Enter</div>
       </div>
 
       <div class="card">
-        <a href="/tetwizard">
+        <div class="card-top">
           <img src="/static/tetwizard-logo.png" alt="TetWizard logo">
-          <div class="meta">Screenshots • Pricing • Enter</div>
-        </a>
+        </div>
+
+        <div class="product-blurb">
+          Designed for full 4-phase tetrathlon competitions.
+        </div>
+
+        <div class="pricing-box">
+          <div class="pricing-title">TetWizard pricing</div>
+          <ul class="pricing-list">
+            <li class="pricing-item">
+              <span><span class="pricing-label">Option 1 — Free</span><br>Practice only • Demo data allowed • Upload disabled</span>
+              <span class="pricing-price">£0</span>
+            </li>
+            <li class="pricing-item">
+              <span><span class="pricing-label">Option 2 — 2 weeks</span><br>Full access for 2 weeks</span>
+              <span class="pricing-price">£35</span>
+            </li>
+            <li class="pricing-item">
+              <span><span class="pricing-label">Option 3 — 1 month</span><br>Extended full access for 1 month</span>
+              <span class="pricing-price">£45</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="choose-wrap">
+          <a href="/tetwizard" class="choose-btn">Choose TetWizard</a>
+        </div>
+
+        <div class="meta">Screenshots • Pricing • Enter</div>
       </div>
 
       <div class="card">
-        <a href="/eventingwizard">
+        <div class="card-top">
           <img src="/static/eventingwizard-logo.png" alt="EventingWizard logo">
-          <div class="meta">Screenshots • Pricing • Enter</div>
-        </a>
+        </div>
+
+        <div class="product-blurb">
+          Tools for eventing competitions. Pricing and access options to be confirmed.
+        </div>
+
+        <div class="pricing-box">
+          <div class="pricing-title">EventingWizard</div>
+          <ul class="pricing-list">
+            <li class="pricing-item">
+              <span><span class="pricing-label">Coming soon</span><br>Product details and pricing will be announced here.</span>
+              <span class="pricing-price">—</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="choose-wrap">
+          <a href="/eventingwizard" class="choose-btn">Choose EventingWizard</a>
+        </div>
+
+        <div class="meta">Screenshots • Pricing • Enter</div>
       </div>
     </div>
 
@@ -332,7 +495,7 @@
 
                   {% if e.event_status == "active" %}
                     <span class="status-pill status-active">Active</span>
-                  {% elif e.event_status == "expired" %}
+                  {% elif e.event_status == "expired" or e.event_status == "ended" %}
                     <span class="status-pill status-expired">Expired</span>
                   {% elif e.event_status == "closed" %}
                     <span class="status-pill status-closed">Closed</span>
