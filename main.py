@@ -183,7 +183,6 @@ def start_wizard(
     if licence not in {"free", "2_week", "1_month"}:
         licence = "free"
 
-    # FREE FLOW
     if licence == "free":
         try:
             launch_url = _create_event_in_triwizard(
@@ -201,7 +200,6 @@ def start_wizard(
                 status_code=303,
             )
 
-    # PAID FLOW
     query = urllib.parse.urlencode(
         {
             "wizard": wizard,
@@ -332,8 +330,7 @@ def payment_success(request: Request, session_id: str | None = None):
         )
 
     try:
-        raw_meta = getattr(session, "metadata", None)
-        meta = dict(raw_meta) if raw_meta else {}
+        meta = session.get("metadata", {}) or {}
     except Exception as e:
         return RedirectResponse(
             url=f"/?message=Stripe+metadata+error:+{urllib.parse.quote_plus(str(e))}",
