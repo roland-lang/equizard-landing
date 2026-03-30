@@ -94,7 +94,6 @@
         <strong>Email:</strong> {{ contact_email or "-" }}
       </div>
 
-      <!-- Stripe form -->
       <form method="post" action="/create-checkout-session">
         <input type="hidden" name="wizard" value="{{ wizard }}">
         <input type="hidden" name="event_name" value="{{ event_name }}">
@@ -102,7 +101,7 @@
         <input type="hidden" name="contact_email" value="{{ contact_email }}">
         <input type="hidden" name="licence" value="{{ licence }}">
 
-        <button class="btn">
+        <button class="btn" type="submit">
           Proceed to secure payment
         </button>
       </form>
