@@ -50,6 +50,8 @@ def _create_event_in_triwizard(
     event_name: str,
     club_name: str,
     contact_email: str,
+    licence: str = "free",
+    payment_status: str = "none",
 ) -> str:
     bridge_url = _required_env("TRIWIZARD_BRIDGE_URL")
     shared_secret = _required_env("PORTAL_SHARED_SECRET")
@@ -66,7 +68,8 @@ def _create_event_in_triwizard(
             "package_type": package_type,
             "access_type": access_type,
             "source": "equizard",
-            "payment_status": "testing",  # updated later
+            "payment_status": payment_status,
+            "licence_duration": licence,
             "external_ref": "",
         }
     ).encode("utf-8")
@@ -89,8 +92,6 @@ def _create_event_in_triwizard(
         raise RuntimeError("TriWizard bridge did not return a launch URL")
 
     return launch_url
-
-
 # -----------------------------------------------------
 # Bridge: get return links
 # -----------------------------------------------------
@@ -182,13 +183,15 @@ def start_wizard(
 
     # FREE FLOW
     if licence == "free":
-        launch_url = _create_event_in_triwizard(
-            wizard=wizard,
-            event_name=event_name.strip(),
-            club_name=club_name.strip(),
-            contact_email=contact_email.strip(),
-        )
-        return RedirectResponse(launch_url, status_code=303)
+    launch_url = _create_event_in_triwizard(
+        wizard=wizard,
+        event_name=event_name.strip(),
+        club_name=club_name.strip(),
+        contact_email=contact_email.strip(),
+        licence="free",
+        payment_status="none",
+    )
+    return RedirectResponse(launch_url, status_code=303)
 
     # PAID FLOW
     query = urllib.parse.urlencode(
@@ -299,22 +302,34 @@ def create_checkout_session(
 # -----------------------------------------------------
 @app.get("/payment-success")
 def payment_success(request: Request, session_id: str | None = None):
-
     if not session_id:
         return RedirectResponse("/", status_code=303)
 
     session = stripe.checkout.Session.retrieve(session_id)
     meta = session.metadata or {}
 
+    wizard = (meta.get("wizard") or "").strip().lower()
+    event_name = (meta.get("event_name") or "").strip()
+    club_name = (meta.get("club_name") or "").strip()
+    contact_email = (meta.get("contact_email") or "").strip()
+    licence = (meta.get("licence") or "").strip().lower()
+
+    if wizard not in {"triwizard", "tetwizard"}:
+        return RedirectResponse("/", status_code=303)
+
+    if licence not in {"2_week", "1_month"}:
+        return RedirectResponse("/", status_code=303)
+
     launch_url = _create_event_in_triwizard(
-        wizard=meta.get("wizard"),
-        event_name=meta.get("event_name"),
-        club_name=meta.get("club_name"),
-        contact_email=meta.get("contact_email"),
+        wizard=wizard,
+        event_name=event_name,
+        club_name=club_name,
+        contact_email=contact_email,
+        licence=licence,
+        payment_status="paid",
     )
 
     return RedirectResponse(launch_url, status_code=303)
-
 
 # -----------------------------------------------------
 # Return flow
