@@ -321,34 +321,49 @@ def payment_success(request: Request, session_id: str | None = None):
     if not session_id:
         return RedirectResponse("/?message=Missing+payment+session", status_code=303)
 
+    # ----------------------------------
+    # Get Stripe session
+    # ----------------------------------
     try:
         session = stripe.checkout.Session.retrieve(session_id)
     except Exception as e:
         return RedirectResponse(
-            url=f"/?message=Stripe+session+retrieve+failed:+{urllib.parse.quote_plus(str(e))}",
+            url=f"/?message=Stripe+session+error:+{urllib.parse.quote_plus(str(e))}",
             status_code=303,
         )
 
+    # ----------------------------------
+    # Extract metadata SAFELY
+    # ----------------------------------
     try:
-        meta = session.get("metadata", {}) or {}
+        meta = session.metadata or {}
     except Exception as e:
         return RedirectResponse(
             url=f"/?message=Stripe+metadata+error:+{urllib.parse.quote_plus(str(e))}",
             status_code=303,
         )
 
-    wizard = str(meta.get("wizard") or "").strip().lower()
-    event_name = str(meta.get("event_name") or "").strip()
-    club_name = str(meta.get("club_name") or "").strip()
-    contact_email = str(meta.get("contact_email") or "").strip()
-    licence = str(meta.get("licence") or "").strip().lower()
+    # ----------------------------------
+    # Read values
+    # ----------------------------------
+    wizard = (meta.get("wizard") or "").strip().lower()
+    event_name = (meta.get("event_name") or "").strip()
+    club_name = (meta.get("club_name") or "").strip()
+    contact_email = (meta.get("contact_email") or "").strip()
+    licence = (meta.get("licence") or "").strip().lower()
 
+    # ----------------------------------
+    # Validate metadata
+    # ----------------------------------
     if wizard not in {"triwizard", "tetwizard"}:
-        return RedirectResponse("/?message=Invalid+wizard+metadata", status_code=303)
+        return RedirectResponse("/?message=Invalid+wizard", status_code=303)
 
     if licence not in {"2_week", "1_month"}:
-        return RedirectResponse("/?message=Invalid+licence+metadata", status_code=303)
+        return RedirectResponse("/?message=Invalid+licence", status_code=303)
 
+    # ----------------------------------
+    # Call bridge (create event)
+    # ----------------------------------
     try:
         launch_url = _create_event_in_triwizard(
             wizard=wizard,
@@ -365,7 +380,6 @@ def payment_success(request: Request, session_id: str | None = None):
         )
 
     return RedirectResponse(launch_url, status_code=303)
-
 
 # -----------------------------------------------------
 # Return flow
