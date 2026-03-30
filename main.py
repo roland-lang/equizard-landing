@@ -309,9 +309,16 @@ def create_checkout_session(
 @app.get("/payment-success")
 def payment_success(request: Request, session_id: str | None = None):
     if not session_id:
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/?message=Missing+payment+session", status_code=303)
 
-    session = stripe.checkout.Session.retrieve(session_id)
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+    except Exception as e:
+        return RedirectResponse(
+            url=f"/?message=Stripe+session+retrieve+failed:+{urllib.parse.quote_plus(str(e))}",
+            status_code=303,
+        )
+
     meta = session.metadata or {}
 
     wizard = (meta.get("wizard") or "").strip().lower()
@@ -321,19 +328,25 @@ def payment_success(request: Request, session_id: str | None = None):
     licence = (meta.get("licence") or "").strip().lower()
 
     if wizard not in {"triwizard", "tetwizard"}:
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/?message=Invalid+wizard+metadata", status_code=303)
 
     if licence not in {"2_week", "1_month"}:
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse("/?message=Invalid+licence+metadata", status_code=303)
 
-    launch_url = _create_event_in_triwizard(
-        wizard=wizard,
-        event_name=event_name,
-        club_name=club_name,
-        contact_email=contact_email,
-        licence=licence,
-        payment_status="paid",
-    )
+    try:
+        launch_url = _create_event_in_triwizard(
+            wizard=wizard,
+            event_name=event_name,
+            club_name=club_name,
+            contact_email=contact_email,
+            licence=licence,
+            payment_status="paid",
+        )
+    except Exception as e:
+        return RedirectResponse(
+            url=f"/?message=Bridge+error:+{urllib.parse.quote_plus(str(e))}",
+            status_code=303,
+        )
 
     return RedirectResponse(launch_url, status_code=303)
 
