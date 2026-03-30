@@ -17,6 +17,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
+# -----------------------------------------------------
+# Helpers
+# -----------------------------------------------------
 def _required_env(name: str) -> str:
     value = (os.getenv(name) or "").strip()
     if not value:
@@ -32,6 +35,9 @@ def _title_for_wizard(wizard: str) -> str:
     return "TetWizard" if wizard == "tetwizard" else "TriWizard"
 
 
+# -----------------------------------------------------
+# Bridge: create event in TriWizard
+# -----------------------------------------------------
 def _create_event_in_triwizard(
     wizard: str,
     event_name: str,
@@ -78,6 +84,9 @@ def _create_event_in_triwizard(
     return launch_url
 
 
+# -----------------------------------------------------
+# Bridge: get return links
+# -----------------------------------------------------
 def _get_return_links_from_triwizard(contact_email: str) -> list[dict]:
     return_url = _required_env("TRIWIZARD_RETURN_URL")
     shared_secret = _required_env("PORTAL_SHARED_SECRET")
@@ -101,15 +110,19 @@ def _get_return_links_from_triwizard(contact_email: str) -> list[dict]:
     with urllib.request.urlopen(req, timeout=20) as resp:
         payload = json.loads(resp.read().decode("utf-8"))
 
+    # ✅ IMPORTANT: Only return the list
     return (payload or {}).get("links") or []
 
 
+# -----------------------------------------------------
+# Routes
+# -----------------------------------------------------
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     return templates.TemplateResponse(
+        request,
         "index.html",
         {
-            "request": request,
             "events": [],
             "email": "",
             "message": "",
@@ -120,9 +133,9 @@ def home(request: Request):
 @app.get("/triwizard", response_class=HTMLResponse)
 def triwizard_form(request: Request):
     return templates.TemplateResponse(
+        request,
         "wizard_onboarding.html",
         {
-            "request": request,
             "wizard": "triwizard",
             "wizard_title": _title_for_wizard("triwizard"),
             "package_type": _package_for_wizard("triwizard"),
@@ -133,9 +146,9 @@ def triwizard_form(request: Request):
 @app.get("/tetwizard", response_class=HTMLResponse)
 def tetwizard_form(request: Request):
     return templates.TemplateResponse(
+        request,
         "wizard_onboarding.html",
         {
-            "request": request,
             "wizard": "tetwizard",
             "wizard_title": _title_for_wizard("tetwizard"),
             "package_type": _package_for_wizard("tetwizard"),
@@ -168,9 +181,9 @@ def start_wizard(
 @app.get("/return", response_class=HTMLResponse)
 def return_form(request: Request):
     return templates.TemplateResponse(
+        request,
         "index.html",
         {
-            "request": request,
             "events": [],
             "email": "",
             "message": "",
@@ -197,9 +210,9 @@ def return_lookup(
         message = "No events were found for that email address."
 
     return templates.TemplateResponse(
+        request,
         "index.html",
         {
-            "request": request,
             "events": events,
             "email": email,
             "message": message,
