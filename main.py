@@ -110,7 +110,6 @@ def _get_return_links_from_triwizard(contact_email: str) -> list[dict]:
     with urllib.request.urlopen(req, timeout=20) as resp:
         payload = json.loads(resp.read().decode("utf-8"))
 
-    # ✅ IMPORTANT: Only return the list
     return (payload or {}).get("links") or []
 
 
@@ -163,19 +162,120 @@ def start_wizard(
     event_name: str = Form(""),
     club_name: str = Form(""),
     contact_email: str = Form(""),
+    licence: str = Form("free"),
 ):
     wizard = (wizard or "").strip().lower()
+    licence = (licence or "free").strip().lower()
+
     if wizard not in {"triwizard", "tetwizard"}:
         return RedirectResponse(url="/", status_code=303)
 
-    launch_url = _create_event_in_triwizard(
-        wizard=wizard,
-        event_name=(event_name or "").strip(),
-        club_name=(club_name or "").strip(),
-        contact_email=(contact_email or "").strip(),
-    )
+    if licence not in {"free", "2_week", "1_month"}:
+        licence = "free"
 
-    return RedirectResponse(url=launch_url, status_code=303)
+    # Free = existing behaviour
+    if licence == "free":
+        launch_url = _create_event_in_triwizard(
+            wizard=wizard,
+            event_name=(event_name or "").strip(),
+            club_name=(club_name or "").strip(),
+            contact_email=(contact_email or "").strip(),
+        )
+        return RedirectResponse(url=launch_url, status_code=303)
+
+    # Paid options = send to temporary payment placeholder
+    query = urllib.parse.urlencode(
+        {
+            "wizard": wizard,
+            "event_name": (event_name or "").strip(),
+            "club_name": (club_name or "").strip(),
+            "contact_email": (contact_email or "").strip(),
+            "licence": licence,
+        }
+    )
+    return RedirectResponse(url=f"/payment?{query}", status_code=303)
+
+
+@app.get("/payment", response_class=HTMLResponse)
+def payment_page(
+    request: Request,
+    wizard: str = "",
+    event_name: str = "",
+    club_name: str = "",
+    contact_email: str = "",
+    licence: str = "",
+):
+    wizard_title = _title_for_wizard((wizard or "").strip().lower() or "triwizard")
+
+    licence_label = {
+        "2_week": "2-week access",
+        "1_month": "1-month access",
+    }.get((licence or "").strip().lower(), "selected access")
+
+    return HTMLResponse(
+        f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>Payment – Equizard</title>
+          <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+          <style>
+            body {{
+              margin: 0;
+              font-family: 'Montserrat', Arial, sans-serif;
+              background: #f6f7fb;
+              color: #111827;
+              padding: 28px 18px 50px;
+            }}
+            .wrap {{
+              max-width: 760px;
+              margin: 0 auto;
+            }}
+            .card {{
+              background: #fff;
+              border: 1px solid #e5e7eb;
+              border-radius: 16px;
+              padding: 22px;
+              box-shadow: 0 4px 18px rgba(17,24,39,0.05);
+              text-align: center;
+            }}
+            h1 {{
+              margin-top: 0;
+            }}
+            .muted {{
+              color: #6b7280;
+              line-height: 1.6;
+            }}
+            .back {{
+              display: inline-block;
+              margin-top: 18px;
+              color: #374151;
+              text-decoration: none;
+              font-weight: 600;
+            }}
+          </style>
+        </head>
+        <body>
+          <div class="wrap">
+            <div class="card">
+              <h1>Payment placeholder</h1>
+              <p class="muted">
+                This is where Stripe will go next.
+              </p>
+              <p class="muted">
+                Product: <strong>{wizard_title}</strong><br>
+                Licence: <strong>{licence_label}</strong><br>
+                Event: <strong>{event_name or "-"}</strong>
+              </p>
+              <a class="back" href="/">← Back to Equizard</a>
+            </div>
+          </div>
+        </body>
+        </html>
+        """
+    )
 
 
 @app.get("/return", response_class=HTMLResponse)
