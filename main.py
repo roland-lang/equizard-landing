@@ -4,6 +4,7 @@ import json
 import os
 import urllib.parse
 import urllib.request
+import stripe
 
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -34,7 +35,7 @@ def _package_for_wizard(wizard: str) -> str:
 def _title_for_wizard(wizard: str) -> str:
     return "TetWizard" if wizard == "tetwizard" else "TriWizard"
 
-
+stripe.api_key = _required_env("STRIPE_SECRET_KEY")
 # -----------------------------------------------------
 # Bridge: create event in TriWizard
 # -----------------------------------------------------
@@ -205,6 +206,40 @@ def payment_page(
     contact_email: str = "",
     licence: str = "",
 ):
+    wizard = (wizard or "").strip().lower()
+    licence = (licence or "").strip().lower()
+
+    wizard_title = _title_for_wizard(wizard or "triwizard")
+
+    licence_label = {
+        "2_week": "2-week access",
+        "1_month": "1-month access",
+    }.get(licence, "selected access")
+
+    return templates.TemplateResponse(
+        request,
+        "payment.html",
+        {
+            "wizard": wizard,
+            "wizard_title": wizard_title,
+            "event_name": event_name,
+            "club_name": club_name,
+            "contact_email": contact_email,
+            "licence": licence,
+            "licence_label": licence_label,
+        },
+    )
+
+
+@app.get("/payment", response_class=HTMLResponse)
+def payment_page(
+    request: Request,
+    wizard: str = "",
+    event_name: str = "",
+    club_name: str = "",
+    contact_email: str = "",
+    licence: str = "",
+):
     wizard_title = _title_for_wizard((wizard or "").strip().lower() or "triwizard")
 
     licence_label = {
@@ -323,3 +358,84 @@ def return_lookup(
 @app.get("/eventingwizard")
 def eventingwizard_entry():
     return RedirectResponse(url="/", status_code=303)
+    
+
+@app.post("/create-checkout-session")
+def create_checkout_session(
+    wizard: str = Form(""),
+    event_name: str = Form(""),
+    club_name: str = Form(""),
+    contact_email: str = Form(""),
+    licence: str = Form(""),
+):
+    wizard = (wizard or "").strip().lower()
+    licence = (licence or "").strip().lower()
+
+    if licence not in {"2_week", "1_month"}:
+        return RedirectResponse("/", status_code=303)
+
+    # 💰 Pricing logic
+    price_map = {
+        "triwizard": {
+            "2_week": 2500,
+            "1_month": 3500,
+        },
+        "tetwizard": {
+            "2_week": 3500,
+            "1_month": 4500,
+        },
+    }
+
+    amount = price_map.get(wizard, {}).get(licence)
+    if not amount:
+        return RedirectResponse("/", status_code=303)
+
+    session = stripe.checkout.Session.create(
+        payment_method_types=["card"],
+        mode="payment",
+        line_items=[
+            {
+                "price_data": {
+                    "currency": "gbp",
+                    "product_data": {
+                        "name": f"{wizard.capitalize()} {licence.replace('_',' ')} access",
+                    },
+                    "unit_amount": amount,
+                },
+                "quantity": 1,
+            }
+        ],
+        success_url=f"{_required_env('BASE_URL')}/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{_required_env('BASE_URL')}/payment",
+        metadata={
+            "wizard": wizard,
+            "event_name": event_name,
+            "club_name": club_name,
+            "contact_email": contact_email,
+            "licence": licence,
+        },
+    )
+
+    return RedirectResponse(session.url, status_code=303)
+
+@app.get("/payment-success")
+def payment_success(request: Request, session_id: str):
+    session = stripe.checkout.Session.retrieve(session_id)
+
+    meta = session.metadata or {}
+
+    wizard = meta.get("wizard")
+    event_name = meta.get("event_name")
+    club_name = meta.get("club_name")
+    contact_email = meta.get("contact_email")
+    licence = meta.get("licence")
+
+    # ✅ Create event in TriWizard
+    launch_url = _create_event_in_triwizard(
+        wizard=wizard,
+        event_name=event_name,
+        club_name=club_name,
+        contact_email=contact_email,
+    )
+
+    return RedirectResponse(url=launch_url, status_code=303)
