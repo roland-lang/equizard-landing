@@ -51,15 +51,15 @@
     }
 
     .warning{
-      margin-top:16px;
-      padding:14px;
+      margin-top:14px;
+      padding:12px;
       background:#fff7ed;
       border:1px solid #fdba74;
-      border-radius:12px;
+      border-radius:10px;
+      color:#7c2d12;
       text-align:left;
-      line-height:1.6;
-      color:#9a3412;
-      font-weight:600;
+      line-height:1.5;
+      font-size:14px;
     }
 
     .btn{
@@ -108,9 +108,7 @@
       </div>
 
       {% if warning %}
-        <div class="warning">
-          {{ warning }}
-        </div>
+        <div class="warning">{{ warning }}</div>
       {% endif %}
 
       <form method="post" action="/create-checkout-session">
@@ -121,12 +119,17 @@
         <input type="hidden" name="competition_date" value="{{ competition_date }}">
         <input type="hidden" name="licence" value="{{ licence }}">
 
-        <button class="btn" type="submit">
+        <button class="btn">
           Proceed to secure payment
         </button>
       </form>
 
-      <a class="back" href="/">← Back to Equizard</a>
+      <a
+        class="back"
+        href="/{{ wizard }}?event_name={{ event_name | urlencode }}&club_name={{ club_name | urlencode }}&contact_email={{ contact_email | urlencode }}&competition_date={{ competition_date | urlencode }}&licence={{ licence or '2_week' }}"
+      >
+        ← Back
+      </a>
 
     </div>
   </div>
