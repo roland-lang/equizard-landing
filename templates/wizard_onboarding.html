@@ -85,6 +85,7 @@
       border-radius:10px;
       color:#7c2d12;
       font-size:14px;
+      line-height:1.5;
     }
 
     .back{
@@ -115,46 +116,79 @@
       {% endif %}
 
       <form id="createForm" action="/start-wizard" method="post">
-
         <input type="hidden" name="wizard" value="{{ wizard }}">
 
-        <label>Event name</label>
-        <input name="event_name" value="{{ event_name or '' }}" required>
+        <label for="event_name">Event name</label>
+        <input
+          id="event_name"
+          name="event_name"
+          type="text"
+          value="{{ event_name or '' }}"
+          required
+        >
 
-        <label>Club / organiser</label>
-        <input name="club_name" value="{{ club_name or '' }}" required>
+        <label for="club_name">Club / organiser</label>
+        <input
+          id="club_name"
+          name="club_name"
+          type="text"
+          value="{{ club_name or '' }}"
+          required
+        >
 
-        <label>Contact email</label>
-        <input name="contact_email" type="email" value="{{ contact_email or '' }}" required>
+        <label for="contact_email">Contact email</label>
+        <input
+          id="contact_email"
+          name="contact_email"
+          type="email"
+          value="{{ contact_email or '' }}"
+          required
+        >
 
-        <label>Date of event</label>
-        <input name="competition_date" type="date" value="{{ competition_date or '' }}" required>
+        <label for="competition_date">Date of event</label>
+        <input
+          id="competition_date"
+          name="competition_date"
+          type="date"
+          value="{{ competition_date or '' }}"
+          required
+        >
 
         <label>Select access</label>
 
         <div class="options">
-
           <label class="option">
-            <input type="radio" name="licence" value="2_week"
-              {% if licence == "2_week" or not licence %}checked{% endif %}>
+            <input
+              type="radio"
+              name="licence"
+              value="2_week"
+              {% if licence == "2_week" or not licence %}checked{% endif %}
+            >
             <strong>2 weeks access</strong><br>
             <span class="muted">{{ price_2_week }}</span>
           </label>
 
           <label class="option">
-            <input type="radio" name="licence" value="1_month"
-              {% if licence == "1_month" %}checked{% endif %}>
+            <input
+              type="radio"
+              name="licence"
+              value="1_month"
+              {% if licence == "1_month" %}checked{% endif %}
+            >
             <strong>1 month access</strong><br>
             <span class="muted">{{ price_1_month }}</span>
           </label>
 
           <label class="option">
-            <input type="radio" name="licence" value="free"
-              {% if licence == "free" %}checked{% endif %}>
+            <input
+              type="radio"
+              name="licence"
+              value="free"
+              {% if licence == "free" %}checked{% endif %}
+            >
             <strong>Practice (demo)</strong><br>
             <span class="muted">No upload / limited features</span>
           </label>
-
         </div>
 
         {% if warning %}
@@ -162,10 +196,14 @@
         {% endif %}
 
         <button id="submitBtn" type="submit" class="btn">Continue</button>
-
       </form>
 
-      <a class="back" href="/">← Back to Equizard</a>
+      <a
+        class="back"
+        href="/{{ wizard }}?event_name={{ event_name | urlencode }}&club_name={{ club_name | urlencode }}&contact_email={{ contact_email | urlencode }}&competition_date={{ competition_date | urlencode }}&licence={{ licence or '2_week' }}"
+      >
+        ← Back
+      </a>
 
     </div>
   </div>
