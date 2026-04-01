@@ -55,6 +55,7 @@
     }
 
     .option input{
+      width:auto;
       margin-right:8px;
     }
 
@@ -105,11 +106,18 @@
         Complete this short form to create your event workspace.
       </p>
 
+      {% if wizard == "tetwizard" %}
+        {% set price_2_week = "£35" %}
+        {% set price_1_month = "£45" %}
+      {% else %}
+        {% set price_2_week = "£25" %}
+        {% set price_1_month = "£35" %}
+      {% endif %}
+
       <form id="createForm" action="/start-wizard" method="post">
 
         <input type="hidden" name="wizard" value="{{ wizard }}">
 
-        <!-- PRE-FILLED FIELDS -->
         <label>Event name</label>
         <input name="event_name" value="{{ event_name or '' }}" required>
 
@@ -122,7 +130,6 @@
         <label>Date of event</label>
         <input name="competition_date" type="date" value="{{ competition_date or '' }}" required>
 
-        <!-- LICENCE OPTIONS -->
         <label>Select access</label>
 
         <div class="options">
@@ -131,14 +138,14 @@
             <input type="radio" name="licence" value="2_week"
               {% if licence == "2_week" or not licence %}checked{% endif %}>
             <strong>2 weeks access</strong><br>
-            <span class="muted">£25 / £35</span>
+            <span class="muted">{{ price_2_week }}</span>
           </label>
 
           <label class="option">
             <input type="radio" name="licence" value="1_month"
               {% if licence == "1_month" %}checked{% endif %}>
             <strong>1 month access</strong><br>
-            <span class="muted">£35 / £45</span>
+            <span class="muted">{{ price_1_month }}</span>
           </label>
 
           <label class="option">
