@@ -183,7 +183,17 @@ def home(request: Request, message: str = ""):
 
 
 @app.get("/triwizard", response_class=HTMLResponse)
-def triwizard_form(request: Request):
+def triwizard_form(
+    request: Request,
+    event_name: str = "",
+    club_name: str = "",
+    contact_email: str = "",
+    competition_date: str = "",
+    licence: str = "",
+):
+    licence = _normalise_licence(licence)
+    warning = _two_week_warning(licence, competition_date)
+
     return templates.TemplateResponse(
         request,
         "wizard_onboarding.html",
@@ -191,12 +201,28 @@ def triwizard_form(request: Request):
             "wizard": "triwizard",
             "wizard_title": _title_for_wizard("triwizard"),
             "package_type": _package_for_wizard("triwizard"),
+            "event_name": event_name,
+            "club_name": club_name,
+            "contact_email": contact_email,
+            "competition_date": competition_date,
+            "licence": licence,
+            "warning": warning,
         },
     )
 
 
 @app.get("/tetwizard", response_class=HTMLResponse)
-def tetwizard_form(request: Request):
+def tetwizard_form(
+    request: Request,
+    event_name: str = "",
+    club_name: str = "",
+    contact_email: str = "",
+    competition_date: str = "",
+    licence: str = "",
+):
+    licence = _normalise_licence(licence)
+    warning = _two_week_warning(licence, competition_date)
+
     return templates.TemplateResponse(
         request,
         "wizard_onboarding.html",
@@ -204,6 +230,12 @@ def tetwizard_form(request: Request):
             "wizard": "tetwizard",
             "wizard_title": _title_for_wizard("tetwizard"),
             "package_type": _package_for_wizard("tetwizard"),
+            "event_name": event_name,
+            "club_name": club_name,
+            "contact_email": contact_email,
+            "competition_date": competition_date,
+            "licence": licence,
+            "warning": warning,
         },
     )
 
