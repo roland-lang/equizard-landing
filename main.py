@@ -504,21 +504,21 @@ def payment_success(request: Request, session_id: str | None = None):
         )
 
     try:
-        meta = session.metadata
-        wizard = (meta.get("wizard") or "").strip().lower()
-        event_name = (meta.get("event_name") or "").strip()
-        club_name = (meta.get("club_name") or "").strip()
-        contact_email = (meta.get("contact_email") or "").strip()
-        competition_date = (meta.get("competition_date") or "").strip()
-        licence = (meta.get("licence") or "").strip().lower()
-        mode = (meta.get("mode") or "activate").strip().lower()
-        event_id = (meta.get("event_id") or "").strip()
-        duration_days = _safe_duration_days(meta.get("duration_days"))
-    except Exception as e:
-        return RedirectResponse(
-            url=f"/?message=Stripe+metadata+read+error:+{urllib.parse.quote_plus(str(e))}",
-            status_code=303,
-        )
+    meta = dict(session.metadata or {})
+    wizard = (meta.get("wizard") or "").strip().lower()
+    event_name = (meta.get("event_name") or "").strip()
+    club_name = (meta.get("club_name") or "").strip()
+    contact_email = (meta.get("contact_email") or "").strip()
+    competition_date = (meta.get("competition_date") or "").strip()
+    licence = (meta.get("licence") or "").strip().lower()
+    mode = (meta.get("mode") or "activate").strip().lower()
+    event_id = (meta.get("event_id") or "").strip()
+    duration_days = _safe_duration_days(meta.get("duration_days"))
+except Exception as e:
+    return RedirectResponse(
+        url=f"/?message=Stripe+metadata+read+error:+{urllib.parse.quote_plus(str(e))}",
+        status_code=303,
+    )
 
     if wizard not in {"triwizard", "tetwizard"}:
         return RedirectResponse("/?message=Invalid+wizard+metadata", status_code=303)
