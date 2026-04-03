@@ -473,8 +473,8 @@ def create_checkout_session(
     }
 
     extension_price_map = {
-        "triwizard": {7: 1500, 14: 2500, 30: 3500},
-        "tetwizard": {7: 2500, 14: 3500, 30: 4500},
+        "triwizard": {7: 1000, 14: 2000, 30: 3000},
+        "tetwizard": {7: 1500, 14: 2500, 30: 3500},
     }
 
     if mode == "extend":
