@@ -56,14 +56,6 @@ def _safe_duration_days(val: str | int | None) -> int:
     return n if n in {7, 14, 30} else 7
 
 
-def _licence_from_duration_days(duration_days: int) -> str:
-    if duration_days == 14:
-        return "2_week"
-    if duration_days == 30:
-        return "1_month"
-    return "2_week"
-
-
 def _duration_label(duration_days: int) -> str:
     return {
         7: "1-week extension",
@@ -102,62 +94,6 @@ def _two_week_warning(licence: str, competition_date: str) -> str:
 
 def _triwizard_public_base_url() -> str:
     return _required_env("TRIWIZARD_PUBLIC_BASE_URL").rstrip("/")
-
-
-def _extension_apply_bridge_html(event_id: str, duration_days: int) -> str:
-    """
-    After successful Stripe payment for an extension, Equizard cannot directly
-    POST cross-site with a RedirectResponse. So we return an auto-submitting
-    HTML form that POSTs to TriWizard /access/extend.
-    """
-    triwizard_base = _triwizard_public_base_url()
-    return f"""
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <title>Completing extension…</title>
-      <style>
-        body {{
-          font-family: Arial, sans-serif;
-          background: #f6f7fb;
-          color: #111827;
-          margin: 0;
-          padding: 32px 18px;
-        }}
-        .wrap {{
-          max-width: 680px;
-          margin: 0 auto;
-        }}
-        .card {{
-          background: #fff;
-          border: 1px solid #e5e7eb;
-          border-radius: 16px;
-          padding: 24px;
-          text-align: center;
-        }}
-      </style>
-    </head>
-    <body>
-      <div class="wrap">
-        <div class="card">
-          <h1>Completing your extension…</h1>
-          <p>Please wait while we restore access to your event.</p>
-
-          <form id="extendForm" method="post" action="{triwizard_base}/access/extend">
-            <input type="hidden" name="event_id" value="{event_id}">
-            <input type="hidden" name="duration_days" value="{duration_days}">
-          </form>
-        </div>
-      </div>
-
-      <script>
-        document.getElementById("extendForm").submit();
-      </script>
-    </body>
-    </html>
-    """
 
 
 # -----------------------------------------------------
@@ -587,9 +523,6 @@ def payment_success(request: Request, session_id: str | None = None):
     if wizard not in {"triwizard", "tetwizard"}:
         return RedirectResponse("/?message=Invalid+wizard+metadata", status_code=303)
 
-    # -------------------------------------------------
-    # EXTEND EXISTING EVENT
-    # -------------------------------------------------
     if mode == "extend":
         if not event_id:
             return RedirectResponse("/?message=Missing+event+id+metadata", status_code=303)
@@ -645,40 +578,6 @@ def payment_success(request: Request, session_id: str | None = None):
             </html>
             """
         )
-
-    # -------------------------------------------------
-    # ACTIVATE NEW EVENT
-    # -------------------------------------------------
-    if licence not in {"2_week", "1_month"}:
-        return RedirectResponse("/?message=Invalid+licence+metadata", status_code=303)
-
-    if not _parse_competition_date(competition_date):
-        return RedirectResponse("/?message=Invalid+competition+date", status_code=303)
-
-    try:
-        launch_url = _create_event_in_triwizard(
-            wizard=wizard,
-            event_name=event_name,
-            club_name=club_name,
-            contact_email=contact_email,
-            competition_date=competition_date,
-            licence=licence,
-            payment_status="paid",
-        )
-    except Exception as e:
-        return RedirectResponse(
-            url=f"/?message=Bridge+error:+{urllib.parse.quote_plus(str(e))}",
-            status_code=303,
-        )
-
-    return RedirectResponse(launch_url, status_code=303)
-    if wizard not in {"triwizard", "tetwizard"}:
-        return RedirectResponse("/?message=Invalid+wizard+metadata", status_code=303)
-
-    if mode == "extend":
-        if not event_id:
-            return RedirectResponse("/?message=Missing+event+id+metadata", status_code=303)
-        return HTMLResponse(_extension_apply_bridge_html(event_id, duration_days_int))
 
     if licence not in {"2_week", "1_month"}:
         return RedirectResponse("/?message=Invalid+licence+metadata", status_code=303)
