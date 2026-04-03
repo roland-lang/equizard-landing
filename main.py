@@ -599,9 +599,8 @@ def return_lookup(request: Request, email: str = Form("")):
     if email:
         try:
             events = _get_return_links_from_triwizard(email)
-        except Exception:
-            message = "Unable to retrieve events at the moment."
-
+        except Exception as e:
+            message = f"Unable to retrieve events at the moment: {e}"
     if email and not events and not message:
         message = "No events were found for that email address."
 
