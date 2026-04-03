@@ -503,29 +503,27 @@ def payment_success(request: Request, session_id: str | None = None):
             status_code=303,
         )
 
-    try:
-        meta = session.metadata or {}
-    
-        wizard = str(meta.get("wizard", "")).strip().lower()
-        event_name = str(meta.get("event_name", "")).strip()
-        club_name = str(meta.get("club_name", "")).strip()
-        contact_email = str(meta.get("contact_email", "")).strip()
-        competition_date = str(meta.get("competition_date", "")).strip()
-        licence = str(meta.get("licence", "")).strip().lower()
-        mode = str(meta.get("mode", "activate")).strip().lower()
-        event_id = str(meta.get("event_id", "")).strip()
-        duration_days = _safe_duration_days(meta.get("duration_days"))
-    
-    except Exception as e:
-        return RedirectResponse(
-            url=f"/?message=Stripe+metadata+read+error:+{urllib.parse.quote_plus(str(e))}",
-            status_code=303,
-        )
+    meta = getattr(session, "metadata", None) or {}
+
+    def meta_str(key: str, default: str = "") -> str:
+        try:
+            return str(meta[key]).strip()
+        except Exception:
+            return default
+
+    wizard = meta_str("wizard").lower()
+    event_name = meta_str("event_name")
+    club_name = meta_str("club_name")
+    contact_email = meta_str("contact_email")
+    competition_date = meta_str("competition_date")
+    licence = meta_str("licence").lower()
+    mode = meta_str("mode", "activate").lower()
+    event_id = meta_str("event_id")
+    duration_days = _safe_duration_days(meta_str("duration_days", "0"))
 
     if wizard not in {"triwizard", "tetwizard"}:
         return RedirectResponse("/?message=Invalid+wizard+metadata", status_code=303)
 
-    # Extension flow
     if mode == "extend":
         if not event_id:
             return RedirectResponse("/?message=Missing+event+id+metadata", status_code=303)
@@ -554,7 +552,6 @@ def payment_success(request: Request, session_id: str | None = None):
             """
         )
 
-    # Normal paid activation flow
     if licence not in {"2_week", "1_month"}:
         return RedirectResponse("/?message=Invalid+licence+metadata", status_code=303)
 
@@ -578,6 +575,8 @@ def payment_success(request: Request, session_id: str | None = None):
         )
 
     return RedirectResponse(launch_url, status_code=303)
+
+
 @app.get("/return", response_class=HTMLResponse)
 def return_form(request: Request):
     return templates.TemplateResponse(
