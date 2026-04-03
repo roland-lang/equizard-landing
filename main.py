@@ -495,7 +495,6 @@ def payment_success(request: Request, session_id: str | None = None):
     if not session_id:
         return RedirectResponse("/?message=Missing+payment+session", status_code=303)
 
-    # --- Get Stripe session ---
     try:
         session = stripe.checkout.Session.retrieve(session_id)
     except Exception as e:
@@ -504,7 +503,6 @@ def payment_success(request: Request, session_id: str | None = None):
             status_code=303,
         )
 
-    # --- Read metadata safely ---
     try:
         meta = dict(session.metadata or {})
         wizard = (meta.get("wizard") or "").strip().lower()
@@ -522,30 +520,39 @@ def payment_success(request: Request, session_id: str | None = None):
             status_code=303,
         )
 
-    # --- Validate ---
     if wizard not in {"triwizard", "tetwizard"}:
         return RedirectResponse("/?message=Invalid+wizard+metadata", status_code=303)
 
-    # --- EXTENSION FLOW ---
+    # Extension flow
     if mode == "extend":
         if not event_id:
             return RedirectResponse("/?message=Missing+event+id+metadata", status_code=303)
 
         triwizard_base = _required_env("TRIWIZARD_PUBLIC_BASE_URL").rstrip("/")
 
-        return HTMLResponse(f"""
-        <html>
-        <body>
-            <form id="f" method="post" action="{triwizard_base}/access/extend">
+        return HTMLResponse(
+            f"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1" />
+              <title>Completing extension…</title>
+            </head>
+            <body>
+              <form id="extendForm" method="post" action="{triwizard_base}/access/extend">
                 <input type="hidden" name="event_id" value="{event_id}">
                 <input type="hidden" name="duration_days" value="{duration_days}">
-            </form>
-            <script>document.getElementById("f").submit();</script>
-        </body>
-        </html>
-        """)
+              </form>
+              <script>
+                document.getElementById("extendForm").submit();
+              </script>
+            </body>
+            </html>
+            """
+        )
 
-    # --- ACTIVATION FLOW ---
+    # Normal paid activation flow
     if licence not in {"2_week", "1_month"}:
         return RedirectResponse("/?message=Invalid+licence+metadata", status_code=303)
 
@@ -569,7 +576,6 @@ def payment_success(request: Request, session_id: str | None = None):
         )
 
     return RedirectResponse(launch_url, status_code=303)
-
 @app.get("/return", response_class=HTMLResponse)
 def return_form(request: Request):
     return templates.TemplateResponse(
