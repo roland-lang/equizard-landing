@@ -577,13 +577,101 @@ def payment_success(request: Request, session_id: str | None = None):
         licence = (meta.get("licence") or "").strip().lower()
         mode = (meta.get("mode") or "activate").strip().lower()
         event_id = (meta.get("event_id") or "").strip()
-        duration_days_int = _safe_duration_days(meta.get("duration_days"))
+        duration_days = _safe_duration_days(meta.get("duration_days"))
     except Exception as e:
         return RedirectResponse(
             url=f"/?message=Stripe+metadata+read+error:+{urllib.parse.quote_plus(str(e))}",
             status_code=303,
         )
 
+    if wizard not in {"triwizard", "tetwizard"}:
+        return RedirectResponse("/?message=Invalid+wizard+metadata", status_code=303)
+
+    # -------------------------------------------------
+    # EXTEND EXISTING EVENT
+    # -------------------------------------------------
+    if mode == "extend":
+        if not event_id:
+            return RedirectResponse("/?message=Missing+event+id+metadata", status_code=303)
+
+        triwizard_base = _required_env("TRIWIZARD_PUBLIC_BASE_URL").rstrip("/")
+
+        return HTMLResponse(
+            f"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1" />
+              <title>Completing extension…</title>
+              <style>
+                body {{
+                  font-family: Arial, sans-serif;
+                  background: #f6f7fb;
+                  color: #111827;
+                  margin: 0;
+                  padding: 32px 18px;
+                }}
+                .wrap {{
+                  max-width: 680px;
+                  margin: 0 auto;
+                }}
+                .card {{
+                  background: #fff;
+                  border: 1px solid #e5e7eb;
+                  border-radius: 16px;
+                  padding: 24px;
+                  text-align: center;
+                }}
+              </style>
+            </head>
+            <body>
+              <div class="wrap">
+                <div class="card">
+                  <h1>Completing your extension…</h1>
+                  <p>Please wait while we restore access to your event.</p>
+
+                  <form id="extendForm" method="post" action="{triwizard_base}/access/extend">
+                    <input type="hidden" name="event_id" value="{event_id}">
+                    <input type="hidden" name="duration_days" value="{duration_days}">
+                  </form>
+                </div>
+              </div>
+
+              <script>
+                document.getElementById("extendForm").submit();
+              </script>
+            </body>
+            </html>
+            """
+        )
+
+    # -------------------------------------------------
+    # ACTIVATE NEW EVENT
+    # -------------------------------------------------
+    if licence not in {"2_week", "1_month"}:
+        return RedirectResponse("/?message=Invalid+licence+metadata", status_code=303)
+
+    if not _parse_competition_date(competition_date):
+        return RedirectResponse("/?message=Invalid+competition+date", status_code=303)
+
+    try:
+        launch_url = _create_event_in_triwizard(
+            wizard=wizard,
+            event_name=event_name,
+            club_name=club_name,
+            contact_email=contact_email,
+            competition_date=competition_date,
+            licence=licence,
+            payment_status="paid",
+        )
+    except Exception as e:
+        return RedirectResponse(
+            url=f"/?message=Bridge+error:+{urllib.parse.quote_plus(str(e))}",
+            status_code=303,
+        )
+
+    return RedirectResponse(launch_url, status_code=303)
     if wizard not in {"triwizard", "tetwizard"}:
         return RedirectResponse("/?message=Invalid+wizard+metadata", status_code=303)
 
