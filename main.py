@@ -43,6 +43,35 @@ def _normalise_licence(val: str | None) -> str:
     return v if v in {"free", "2_week", "1_month"} else "free"
 
 
+def _normalise_mode(val: str | None) -> str:
+    v = (val or "").strip().lower()
+    return v if v in {"activate", "extend"} else "activate"
+
+
+def _safe_duration_days(val: str | int | None) -> int:
+    try:
+        n = int(val or 0)
+    except Exception:
+        n = 0
+    return n if n in {7, 14, 30} else 7
+
+
+def _licence_from_duration_days(duration_days: int) -> str:
+    if duration_days == 14:
+        return "2_week"
+    if duration_days == 30:
+        return "1_month"
+    return "2_week"
+
+
+def _duration_label(duration_days: int) -> str:
+    return {
+        7: "1-week extension",
+        14: "2-week extension",
+        30: "1-month extension",
+    }.get(duration_days, "Extension")
+
+
 def _parse_competition_date(val: str | None) -> date | None:
     s = (val or "").strip()
     if not s:
@@ -69,6 +98,66 @@ def _two_week_warning(licence: str, competition_date: str) -> str:
         )
 
     return ""
+
+
+def _triwizard_public_base_url() -> str:
+    return _required_env("TRIWIZARD_PUBLIC_BASE_URL").rstrip("/")
+
+
+def _extension_apply_bridge_html(event_id: str, duration_days: int) -> str:
+    """
+    After successful Stripe payment for an extension, Equizard cannot directly
+    POST cross-site with a RedirectResponse. So we return an auto-submitting
+    HTML form that POSTs to TriWizard /access/extend.
+    """
+    triwizard_base = _triwizard_public_base_url()
+    return f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Completing extension…</title>
+      <style>
+        body {{
+          font-family: Arial, sans-serif;
+          background: #f6f7fb;
+          color: #111827;
+          margin: 0;
+          padding: 32px 18px;
+        }}
+        .wrap {{
+          max-width: 680px;
+          margin: 0 auto;
+        }}
+        .card {{
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 16px;
+          padding: 24px;
+          text-align: center;
+        }}
+      </style>
+    </head>
+    <body>
+      <div class="wrap">
+        <div class="card">
+          <h1>Completing your extension…</h1>
+          <p>Please wait while we restore access to your event.</p>
+
+          <form id="extendForm" method="post" action="{triwizard_base}/access/extend">
+            <input type="hidden" name="event_id" value="{event_id}">
+            <input type="hidden" name="duration_days" value="{duration_days}">
+          </form>
+        </div>
+      </div>
+
+      <script>
+        document.getElementById("extendForm").submit();
+      </script>
+    </body>
+    </html>
+    """
 
 
 # -----------------------------------------------------
@@ -286,6 +375,9 @@ def start_wizard(
             "contact_email": contact_email,
             "competition_date": competition_date,
             "licence": licence,
+            "mode": "activate",
+            "event_id": "",
+            "duration_days": "",
         }
     )
     return RedirectResponse(f"/payment?{query}", status_code=303)
@@ -300,18 +392,27 @@ def payment_page(
     contact_email: str = "",
     competition_date: str = "",
     licence: str = "",
+    mode: str = "activate",
+    event_id: str = "",
+    duration_days: str = "",
 ):
     wizard = (wizard or "").strip().lower()
     licence = _normalise_licence(licence)
-    competition_date = (competition_date or "").strip()
+    mode = _normalise_mode(mode)
+    event_id = (event_id or "").strip()
+    duration_days_int = _safe_duration_days(duration_days) if duration_days else 0
 
     wizard_title = _title_for_wizard(wizard or "triwizard")
-    licence_label = {
-        "2_week": "2-week access",
-        "1_month": "1-month access",
-    }.get(licence, "selected access")
 
-    warning = _two_week_warning(licence, competition_date)
+    if mode == "extend":
+        licence_label = _duration_label(duration_days_int)
+        warning = ""
+    else:
+        licence_label = {
+            "2_week": "2-week access",
+            "1_month": "1-month access",
+        }.get(licence, "selected access")
+        warning = _two_week_warning(licence, competition_date)
 
     return templates.TemplateResponse(
         request,
@@ -326,6 +427,9 @@ def payment_page(
             "licence": licence,
             "licence_label": licence_label,
             "warning": warning,
+            "mode": mode,
+            "event_id": event_id,
+            "duration_days": duration_days_int,
         },
     )
 
@@ -338,26 +442,74 @@ def create_checkout_session(
     contact_email: str = Form(""),
     competition_date: str = Form(""),
     licence: str = Form(""),
+    mode: str = Form("activate"),
+    event_id: str = Form(""),
+    duration_days: str = Form(""),
 ):
     wizard = (wizard or "").strip().lower()
     licence = _normalise_licence(licence)
+    mode = _normalise_mode(mode)
+    event_id = (event_id or "").strip()
+    duration_days_int = _safe_duration_days(duration_days) if duration_days else 0
     competition_date = (competition_date or "").strip()
 
     if wizard not in {"triwizard", "tetwizard"}:
         return RedirectResponse("/?message=Invalid+wizard", status_code=303)
 
-    if licence not in {"2_week", "1_month"}:
-        return RedirectResponse("/?message=Invalid+licence", status_code=303)
+    if mode == "extend":
+        if not event_id:
+            return RedirectResponse("/?message=Missing+event+id+for+extension", status_code=303)
+        if duration_days_int not in {7, 14, 30}:
+            return RedirectResponse("/?message=Invalid+extension+duration", status_code=303)
+    else:
+        if licence not in {"2_week", "1_month"}:
+            return RedirectResponse("/?message=Invalid+licence", status_code=303)
+        if not _parse_competition_date(competition_date):
+            return RedirectResponse("/?message=Please+enter+a+valid+event+date", status_code=303)
 
-    if not _parse_competition_date(competition_date):
-        return RedirectResponse("/?message=Please+enter+a+valid+event+date", status_code=303)
-
-    price_map = {
+    activation_price_map = {
         "triwizard": {"2_week": 2500, "1_month": 3500},
         "tetwizard": {"2_week": 3500, "1_month": 4500},
     }
 
-    amount = price_map.get(wizard, {}).get(licence)
+    extension_price_map = {
+        "triwizard": {7: 1500, 14: 2500, 30: 3500},
+        "tetwizard": {7: 2500, 14: 3500, 30: 4500},
+    }
+
+    if mode == "extend":
+        amount = extension_price_map.get(wizard, {}).get(duration_days_int)
+        product_name = f"{_title_for_wizard(wizard)} {_duration_label(duration_days_int)}"
+        cancel_query = urllib.parse.urlencode(
+            {
+                "wizard": wizard,
+                "event_name": event_name,
+                "club_name": club_name,
+                "contact_email": contact_email,
+                "competition_date": competition_date,
+                "licence": "",
+                "mode": "extend",
+                "event_id": event_id,
+                "duration_days": str(duration_days_int),
+            }
+        )
+    else:
+        amount = activation_price_map.get(wizard, {}).get(licence)
+        product_name = f"{_title_for_wizard(wizard)} {licence.replace('_', ' ')} access"
+        cancel_query = urllib.parse.urlencode(
+            {
+                "wizard": wizard,
+                "event_name": event_name,
+                "club_name": club_name,
+                "contact_email": contact_email,
+                "competition_date": competition_date,
+                "licence": licence,
+                "mode": "activate",
+                "event_id": "",
+                "duration_days": "",
+            }
+        )
+
     if not amount:
         return RedirectResponse("/?message=Price+not+found", status_code=303)
 
@@ -372,7 +524,7 @@ def create_checkout_session(
                     "price_data": {
                         "currency": "gbp",
                         "product_data": {
-                            "name": f"{wizard.capitalize()} {licence.replace('_', ' ')} access",
+                            "name": product_name,
                         },
                         "unit_amount": amount,
                     },
@@ -380,7 +532,7 @@ def create_checkout_session(
                 }
             ],
             success_url=f"{base_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{base_url}/payment?{urllib.parse.urlencode({'wizard': wizard, 'event_name': event_name, 'club_name': club_name, 'contact_email': contact_email, 'competition_date': competition_date, 'licence': licence})}",
+            cancel_url=f"{base_url}/payment?{cancel_query}",
             metadata={
                 "wizard": wizard,
                 "event_name": event_name,
@@ -388,6 +540,9 @@ def create_checkout_session(
                 "contact_email": contact_email,
                 "competition_date": competition_date,
                 "licence": licence,
+                "mode": mode,
+                "event_id": event_id,
+                "duration_days": str(duration_days_int),
             },
         )
     except Exception as e:
@@ -414,12 +569,15 @@ def payment_success(request: Request, session_id: str | None = None):
 
     try:
         meta = session.metadata
-        wizard = (meta["wizard"] or "").strip().lower()
-        event_name = (meta["event_name"] or "").strip()
-        club_name = (meta["club_name"] or "").strip()
-        contact_email = (meta["contact_email"] or "").strip()
-        competition_date = (meta["competition_date"] or "").strip()
-        licence = (meta["licence"] or "").strip().lower()
+        wizard = (meta.get("wizard") or "").strip().lower()
+        event_name = (meta.get("event_name") or "").strip()
+        club_name = (meta.get("club_name") or "").strip()
+        contact_email = (meta.get("contact_email") or "").strip()
+        competition_date = (meta.get("competition_date") or "").strip()
+        licence = (meta.get("licence") or "").strip().lower()
+        mode = (meta.get("mode") or "activate").strip().lower()
+        event_id = (meta.get("event_id") or "").strip()
+        duration_days_int = _safe_duration_days(meta.get("duration_days"))
     except Exception as e:
         return RedirectResponse(
             url=f"/?message=Stripe+metadata+read+error:+{urllib.parse.quote_plus(str(e))}",
@@ -428,6 +586,11 @@ def payment_success(request: Request, session_id: str | None = None):
 
     if wizard not in {"triwizard", "tetwizard"}:
         return RedirectResponse("/?message=Invalid+wizard+metadata", status_code=303)
+
+    if mode == "extend":
+        if not event_id:
+            return RedirectResponse("/?message=Missing+event+id+metadata", status_code=303)
+        return HTMLResponse(_extension_apply_bridge_html(event_id, duration_days_int))
 
     if licence not in {"2_week", "1_month"}:
         return RedirectResponse("/?message=Invalid+licence+metadata", status_code=303)
