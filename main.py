@@ -340,6 +340,16 @@ def _fulfil_checkout_session(session: Any) -> dict:
     contact_email = _meta_str(meta, "contact_email")
     competition_date = _meta_str(meta, "competition_date")
 
+    if not contact_email:
+        contact_email = str(_session_field(session, "customer_email", "") or "").strip()
+
+    if not contact_email:
+        customer_details = _session_field(session, "customer_details", {}) or {}
+        if isinstance(customer_details, dict):
+            contact_email = str(customer_details.get("email", "") or "").strip()
+        else:
+            contact_email = str(getattr(customer_details, "email", "") or "").strip()
+
     licence = _meta_str(meta, "licence", "").lower()
     mode = _meta_str(meta, "mode", "activate").lower()
     event_id = _meta_str(meta, "event_id")
@@ -373,7 +383,7 @@ def _fulfil_checkout_session(session: Any) -> dict:
         event_name = "New Event"
 
     if not contact_email:
-        raise RuntimeError("Missing contact_email in metadata")
+        raise RuntimeError("No email available (metadata or Stripe)")
 
     launch_url = _create_event_in_triwizard(
         wizard=wizard,
@@ -715,10 +725,10 @@ async def stripe_webhook(request: Request):
     except Exception as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
 
-    event_type = str(event.get("type", "") or "").strip()
+    event_type = str(getattr(event, "type", "") or "").strip()
 
     if event_type == "checkout.session.completed":
-        session = event["data"]["object"]
+        session = event.data.object
 
         try:
             _fulfil_checkout_session(session)
