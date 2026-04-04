@@ -480,17 +480,20 @@ def tetwizard_form(
     )
 
 
-@app.post("/start-wizard")
-def start_wizard(
-    request: Request,
-    wizard: str = Form(""),
-    event_name: str = Form(""),
-    club_name: str = Form(""),
-    contact_email: str = Form(""),
-    competition_date: str = Form(""),
-    licence: str = Form("free"),
-):
-    wizard = (wizard or "").strip().lower()
+query = urllib.parse.urlencode(
+    {
+        "wizard": wizard,
+        "event_name": event_name,
+        "club_name": club_name,
+        "contact_email": contact_email,
+        "competition_date": competition_date,
+        "licence": licence,
+        "mode": "activate",
+        "event_id": "",
+        "duration_days": "",
+    }
+
+)    wizard = (wizard or "").strip().lower()
     licence = _normalise_licence(licence)
     competition_date = (competition_date or "").strip()
 
