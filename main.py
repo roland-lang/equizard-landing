@@ -114,11 +114,6 @@ def _stripe_webhook_secret() -> str:
 # Safe Stripe helpers
 # -----------------------------------------------------
 def _session_field(session: Any, key: str, default: Any = "") -> Any:
-    """
-    Works with:
-      - webhook payload dicts
-      - Stripe SDK objects
-    """
     if isinstance(session, dict):
         return session.get(key, default)
 
@@ -326,7 +321,6 @@ def _fulfil_checkout_session(session: Any) -> dict[str, Any]:
     if _is_session_fulfilled(session_id):
         raise RuntimeError("Payment already processed")
 
-    # Always fetch the full session from Stripe before reading anything important
     full_session = stripe.checkout.Session.retrieve(session_id)
 
     payment_status = str(_session_field(full_session, "payment_status", "") or "").strip().lower()
@@ -412,6 +406,8 @@ def _fulfil_checkout_session(session: Any) -> dict[str, Any]:
         "session_id": session_id,
         "launch_url": launch_url,
     }
+
+
 # -----------------------------------------------------
 # Routes
 # -----------------------------------------------------
@@ -484,6 +480,7 @@ def tetwizard_form(
             "warning": warning,
         },
     )
+
 
 @app.post("/start-wizard")
 def start_wizard(
@@ -644,6 +641,7 @@ def create_checkout_session(
     mode = _normalise_mode(mode)
     event_id = (event_id or "").strip()
     duration_days_int = _safe_duration_days(duration_days) if duration_days else 0
+
     if mode == "extend":
         if not event_id:
             return RedirectResponse("/?message=Missing+event+id+for+extension", status_code=303)
@@ -710,7 +708,7 @@ def create_checkout_session(
 
     base_url = _required_env("BASE_URL")
 
-        try:
+    try:
         print("STRIPE METADATA TO SEND:")
         print(
             repr(
@@ -765,6 +763,7 @@ def create_checkout_session(
             f"/?message=Stripe+checkout+error:+{urllib.parse.quote_plus(str(e))}",
             status_code=303,
         )
+
     return RedirectResponse(session.url, status_code=303)
 
 
