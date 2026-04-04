@@ -327,7 +327,10 @@ def _fulfil_checkout_session(session: Any) -> dict:
 
     meta = _session_metadata(session)
 
-    wizard = _meta_str(meta, "wizard").lower()
+    wizard = _meta_str(meta, "wizard", "triwizard").lower()
+    if wizard not in {"triwizard", "tetwizard"}:
+        wizard = "triwizard"
+    
     event_name = _meta_str(meta, "event_name")
     club_name = _meta_str(meta, "club_name")
     contact_email = _meta_str(meta, "contact_email")
@@ -336,7 +339,6 @@ def _fulfil_checkout_session(session: Any) -> dict:
     mode = _meta_str(meta, "mode", "activate").lower()
     event_id = _meta_str(meta, "event_id")
     duration_days = _safe_duration_days(_meta_str(meta, "duration_days", "0"))
-
     if wizard not in {"triwizard", "tetwizard"}:
         raise RuntimeError("Invalid wizard metadata")
 
