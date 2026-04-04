@@ -721,6 +721,9 @@ def payment_success(request: Request, session_id: str | None = None):
     if not session_id:
         return RedirectResponse("/?message=Missing+payment+session", status_code=303)
 
+    # -------------------------------------------------
+    # Retrieve Stripe session safely
+    # -------------------------------------------------
     try:
         session = stripe.checkout.Session.retrieve(session_id)
     except Exception as e:
@@ -729,121 +732,55 @@ def payment_success(request: Request, session_id: str | None = None):
             status_code=303,
         )
 
-    payment_status = str(_session_field(session, "payment_status", "") or "").strip().lower()
-    meta = _session_metadata(session)
+    # -------------------------------------------------
+    # Attempt fulfilment immediately
+    # -------------------------------------------------
+    try:
+        result = _fulfil_checkout_session(session)
+    except Exception as e:
+        return RedirectResponse(
+            url=f"/?message=Fulfilment+error:+{urllib.parse.quote_plus(str(e))}",
+            status_code=303,
+        )
 
-    wizard = _meta_str(meta, "wizard", "triwizard").lower()
-    mode = _meta_str(meta, "mode", "activate").lower()
-    event_name = _meta_str(meta, "event_name")
-    club_name = _meta_str(meta, "club_name")
-    contact_email = _meta_str(meta, "contact_email")
-    competition_date = _meta_str(meta, "competition_date")
+    # -------------------------------------------------
+    # If already fulfilled (refresh / retry case)
+    # -------------------------------------------------
+    if result.get("already_fulfilled"):
+        # Try to reconstruct launch if possible
+        launch_url = result.get("launch_url")
+        if launch_url:
+            return RedirectResponse(launch_url, status_code=303)
 
-    wizard_title = _title_for_wizard(
-        wizard if wizard in {"triwizard", "tetwizard"} else "triwizard"
+        return RedirectResponse(
+            url="/?message=Payment+already+processed",
+            status_code=303,
+        )
+
+    # -------------------------------------------------
+    # EXTENSION FLOW
+    # -------------------------------------------------
+    if result.get("mode") == "extend":
+        return RedirectResponse(
+            url="/?message=Extension+applied+successfully",
+            status_code=303,
+        )
+
+    # -------------------------------------------------
+    # ACTIVATION FLOW (PRIMARY PATH 🚀)
+    # -------------------------------------------------
+    launch_url = result.get("launch_url")
+
+    if launch_url:
+        return RedirectResponse(launch_url, status_code=303)
+
+    # -------------------------------------------------
+    # Fallback (should never happen)
+    # -------------------------------------------------
+    return RedirectResponse(
+        url="/?message=Unexpected+error+during+launch",
+        status_code=303,
     )
-
-    message = (
-        "Your payment has been received. We are finishing things off now."
-        if payment_status == "paid"
-        else "Your checkout has completed, but payment is not yet marked as paid."
-    )
-
-    return HTMLResponse(
-        f"""
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="utf-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <title>Payment received – Equizard</title>
-          <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
-          <style>
-            body {{
-              margin:0;
-              font-family:'Montserrat', Arial, sans-serif;
-              background:#f6f7fb;
-              color:#111827;
-              padding:28px 18px 50px;
-            }}
-            .wrap {{
-              max-width:760px;
-              margin:0 auto;
-            }}
-            .card {{
-              background:#fff;
-              border:1px solid #e5e7eb;
-              border-radius:16px;
-              padding:22px;
-              box-shadow:0 4px 18px rgba(17,24,39,0.05);
-              text-align:center;
-            }}
-            h1 {{
-              margin-top:0;
-              margin-bottom:10px;
-            }}
-            .muted {{
-              color:#6b7280;
-              line-height:1.6;
-            }}
-            .summary {{
-              margin-top:16px;
-              padding:14px;
-              background:#f9fafb;
-              border:1px solid #e5e7eb;
-              border-radius:12px;
-              text-align:left;
-              line-height:1.6;
-            }}
-            .actions {{
-              margin-top:20px;
-              display:flex;
-              flex-wrap:wrap;
-              gap:12px;
-              justify-content:center;
-            }}
-            .btn {{
-              display:inline-block;
-              background:#2563eb;
-              color:#fff;
-              padding:12px 18px;
-              border-radius:10px;
-              font-size:16px;
-              font-weight:700;
-              text-decoration:none;
-            }}
-            .btn.secondary {{
-              background:#111827;
-            }}
-          </style>
-        </head>
-        <body>
-          <div class="wrap">
-            <div class="card">
-              <h1>Payment received</h1>
-              <p class="muted">{message}</p>
-
-              <div class="summary">
-                <strong>Product:</strong> {wizard_title}<br>
-                <strong>Mode:</strong> {"Extension" if mode == "extend" else "Activation"}<br>
-                <strong>Event:</strong> {event_name or "-"}<br>
-                <strong>Organiser:</strong> {club_name or "-"}<br>
-                <strong>Email:</strong> {contact_email or "-"}<br>
-                {"<strong>Date of event:</strong> " + competition_date + "<br>" if competition_date else ""}
-                <strong>Stripe session:</strong> {session_id}
-              </div>
-
-              <div class="actions">
-                <a class="btn" href="/return">Find my access links</a>
-                <a class="btn secondary" href="/">Back to home</a>
-              </div>
-            </div>
-          </div>
-        </body>
-        </html>
-        """
-    )
-
 
 @app.get("/return", response_class=HTMLResponse)
 def return_form(request: Request):
