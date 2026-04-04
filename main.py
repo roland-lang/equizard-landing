@@ -479,7 +479,6 @@ def tetwizard_form(
         },
     )
 
-
 @app.post("/start-wizard")
 def start_wizard(
     request: Request,
@@ -490,6 +489,14 @@ def start_wizard(
     competition_date: str = Form(""),
     licence: str = Form("free"),
 ):
+    print("START_WIZARD VALUES:")
+    print("wizard:", repr(wizard))
+    print("event_name:", repr(event_name))
+    print("club_name:", repr(club_name))
+    print("contact_email:", repr(contact_email))
+    print("competition_date:", repr(competition_date))
+    print("licence:", repr(licence))
+
     wizard = (wizard or "").strip().lower()
     event_name = (event_name or "").strip()
     club_name = (club_name or "").strip()
