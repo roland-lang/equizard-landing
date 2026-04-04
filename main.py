@@ -576,7 +576,7 @@ def create_checkout_session(
     event_id: str = Form(""),
     duration_days: str = Form(""),
 ):
-    wizard = (wizard or "").strip().lower()
+    wizard = (wizard or "triwizard").strip().lower()
     licence = _normalise_licence(licence)
     mode = _normalise_mode(mode)
     event_id = (event_id or "").strip()
