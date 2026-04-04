@@ -48,6 +48,11 @@ def _normalise_licence(val: str | None) -> str:
     return v if v in {"free", "2_week", "1_month"} else "free"
 
 
+def _normalise_paid_licence(val: str | None) -> str:
+    v = (val or "").strip().lower()
+    return v if v in {"2_week", "1_month"} else "2_week"
+
+
 def _normalise_mode(val: str | None) -> str:
     v = (val or "").strip().lower()
     return v if v in {"activate", "extend"} else "activate"
@@ -123,7 +128,7 @@ def _session_field(session: Any, key: str, default: Any = "") -> Any:
         return default
 
 
-def _session_metadata(session: Any) -> dict:
+def _session_metadata(session: Any) -> dict[str, Any]:
     meta = _session_field(session, "metadata", {}) or {}
 
     if isinstance(meta, dict):
@@ -135,7 +140,7 @@ def _session_metadata(session: Any) -> dict:
         return {}
 
 
-def _meta_str(meta: dict, key: str, default: str = "") -> str:
+def _meta_str(meta: dict[str, Any], key: str, default: str = "") -> str:
     try:
         return str(meta.get(key, default)).strip()
     except Exception:
@@ -205,17 +210,17 @@ def _create_event_in_triwizard(
 
     form_data = urllib.parse.urlencode(
         {
-            "event_name": event_name,
-            "club_name": club_name,
-            "contact_email": contact_email,
-            "competition_date": competition_date,
+            "event_name": (event_name or "").strip(),
+            "club_name": (club_name or "").strip(),
+            "contact_email": (contact_email or "").strip(),
+            "competition_date": (competition_date or "").strip(),
             "duration_days": "30",
             "package_type": package_type,
             "access_type": access_type,
             "source": "equizard",
-            "payment_status": payment_status,
-            "licence_duration": licence,
-            "external_ref": external_ref,
+            "payment_status": (payment_status or "").strip(),
+            "licence_duration": (licence or "").strip(),
+            "external_ref": (external_ref or "").strip(),
         }
     ).encode("utf-8")
 
@@ -248,7 +253,7 @@ def _create_event_in_triwizard(
 def _extend_access_in_triwizard(
     event_id: str,
     duration_days: int,
-) -> dict:
+) -> dict[str, Any]:
     extend_url = f"{_triwizard_public_base_url()}/portal/extend-access"
     shared_secret = _required_env("PORTAL_SHARED_SECRET")
 
@@ -284,7 +289,7 @@ def _extend_access_in_triwizard(
     return payload
 
 
-def _get_return_links_from_triwizard(contact_email: str) -> list[dict]:
+def _get_return_links_from_triwizard(contact_email: str) -> list[dict[str, Any]]:
     return_url = _required_env("TRIWIZARD_RETURN_URL")
     shared_secret = _required_env("PORTAL_SHARED_SECRET")
 
@@ -313,17 +318,13 @@ def _get_return_links_from_triwizard(contact_email: str) -> list[dict]:
 # -----------------------------------------------------
 # Fulfilment
 # -----------------------------------------------------
-def _fulfil_checkout_session(session: Any) -> dict:
+def _fulfil_checkout_session(session: Any) -> dict[str, Any]:
     session_id = str(_session_field(session, "id", "") or "").strip()
     if not session_id:
         raise RuntimeError("Missing Stripe session id")
 
     if _is_session_fulfilled(session_id):
-        return {
-            "ok": True,
-            "already_fulfilled": True,
-            "session_id": session_id,
-        }
+        raise RuntimeError("Payment already processed")
 
     payment_status = str(_session_field(session, "payment_status", "") or "").strip().lower()
     if payment_status != "paid":
@@ -335,10 +336,17 @@ def _fulfil_checkout_session(session: Any) -> dict:
     if wizard not in {"triwizard", "tetwizard"}:
         wizard = "triwizard"
 
+    mode = _meta_str(meta, "mode", "activate").lower()
+    if mode not in {"activate", "extend"}:
+        mode = "activate"
+
     event_name = _meta_str(meta, "event_name")
     club_name = _meta_str(meta, "club_name")
     contact_email = _meta_str(meta, "contact_email")
     competition_date = _meta_str(meta, "competition_date")
+    licence = _normalise_paid_licence(_meta_str(meta, "licence"))
+    event_id = _meta_str(meta, "event_id")
+    duration_days = _safe_duration_days(_meta_str(meta, "duration_days", "0"))
 
     if not contact_email:
         contact_email = str(_session_field(session, "customer_email", "") or "").strip()
@@ -349,11 +357,6 @@ def _fulfil_checkout_session(session: Any) -> dict:
             contact_email = str(customer_details.get("email", "") or "").strip()
         else:
             contact_email = str(getattr(customer_details, "email", "") or "").strip()
-
-    licence = _meta_str(meta, "licence", "").lower()
-    mode = _meta_str(meta, "mode", "activate").lower()
-    event_id = _meta_str(meta, "event_id")
-    duration_days = _safe_duration_days(_meta_str(meta, "duration_days", "0"))
 
     if mode == "extend":
         if not event_id:
@@ -372,9 +375,6 @@ def _fulfil_checkout_session(session: Any) -> dict:
             "session_id": session_id,
             "result": result,
         }
-
-    if licence not in {"2_week", "1_month"}:
-        licence = "1_month"
 
     if not _parse_competition_date(competition_date):
         competition_date = ""
@@ -480,22 +480,22 @@ def tetwizard_form(
     )
 
 
-query = urllib.parse.urlencode(
-    {
-        "wizard": wizard,
-        "event_name": event_name,
-        "club_name": club_name,
-        "contact_email": contact_email,
-        "competition_date": competition_date,
-        "licence": licence,
-        "mode": "activate",
-        "event_id": "",
-        "duration_days": "",
-    }
-
-)    wizard = (wizard or "").strip().lower()
-    licence = _normalise_licence(licence)
+@app.post("/start-wizard")
+def start_wizard(
+    request: Request,
+    wizard: str = Form(""),
+    event_name: str = Form(""),
+    club_name: str = Form(""),
+    contact_email: str = Form(""),
+    competition_date: str = Form(""),
+    licence: str = Form("free"),
+):
+    wizard = (wizard or "").strip().lower()
+    event_name = (event_name or "").strip()
+    club_name = (club_name or "").strip()
+    contact_email = (contact_email or "").strip()
     competition_date = (competition_date or "").strip()
+    licence = _normalise_licence(licence)
 
     if wizard not in {"triwizard", "tetwizard"}:
         return RedirectResponse("/", status_code=303)
@@ -507,9 +507,9 @@ query = urllib.parse.urlencode(
         try:
             launch_url = _create_event_in_triwizard(
                 wizard=wizard,
-                event_name=event_name.strip(),
-                club_name=club_name.strip(),
-                contact_email=contact_email.strip(),
+                event_name=event_name,
+                club_name=club_name,
+                contact_email=contact_email,
                 competition_date=competition_date,
                 licence="free",
                 payment_status="none",
@@ -551,6 +551,13 @@ def payment_page(
     duration_days: str = "",
 ):
     wizard = (wizard or "triwizard").strip().lower()
+    if wizard not in {"triwizard", "tetwizard"}:
+        wizard = "triwizard"
+
+    event_name = (event_name or "").strip()
+    club_name = (club_name or "").strip()
+    contact_email = (contact_email or "").strip()
+    competition_date = (competition_date or "").strip()
     licence = _normalise_licence(licence)
     mode = _normalise_mode(mode)
     event_id = (event_id or "").strip()
@@ -562,12 +569,12 @@ def payment_page(
         licence_label = _duration_label(duration_days_int)
         warning = ""
     else:
-        if licence not in {"2_week", "1_month"}:
-            licence = "2_week"
+        paid_licence = _normalise_paid_licence(licence)
         licence_label = {
             "2_week": "2-week access",
             "1_month": "1-month access",
-        }.get(licence, "selected access")
+        }[paid_licence]
+        licence = paid_licence
         warning = _two_week_warning(licence, competition_date)
 
     return templates.TemplateResponse(
@@ -603,14 +610,16 @@ def create_checkout_session(
     duration_days: str = Form(""),
 ):
     wizard = (wizard or "triwizard").strip().lower()
-    licence = _normalise_licence(licence)
+    if wizard not in {"triwizard", "tetwizard"}:
+        return RedirectResponse("/?message=Invalid+wizard", status_code=303)
+
+    event_name = (event_name or "").strip()
+    club_name = (club_name or "").strip()
+    contact_email = (contact_email or "").strip()
+    competition_date = (competition_date or "").strip()
     mode = _normalise_mode(mode)
     event_id = (event_id or "").strip()
     duration_days_int = _safe_duration_days(duration_days) if duration_days else 0
-    competition_date = (competition_date or "").strip()
-
-    if wizard not in {"triwizard", "tetwizard"}:
-        return RedirectResponse("/?message=Invalid+wizard", status_code=303)
 
     if mode == "extend":
         if not event_id:
@@ -618,10 +627,15 @@ def create_checkout_session(
         if duration_days_int not in {7, 14, 30}:
             return RedirectResponse("/?message=Invalid+extension+duration", status_code=303)
     else:
-        if licence not in {"2_week", "1_month"}:
-            licence = "2_week"
+        licence = _normalise_paid_licence(licence)
         if not _parse_competition_date(competition_date):
             return RedirectResponse("/?message=Please+enter+a+valid+event+date", status_code=303)
+        if not event_name:
+            return RedirectResponse("/?message=Please+enter+an+event+name", status_code=303)
+        if not club_name:
+            return RedirectResponse("/?message=Please+enter+club+or+organiser", status_code=303)
+        if not contact_email:
+            return RedirectResponse("/?message=Please+enter+a+contact+email", status_code=303)
 
     activation_price_map = {
         "triwizard": {"2_week": 2500, "1_month": 3500},
@@ -649,6 +663,7 @@ def create_checkout_session(
                 "duration_days": str(duration_days_int),
             }
         )
+        licence_for_metadata = ""
     else:
         amount = activation_price_map.get(wizard, {}).get(licence)
         product_name = f"{_title_for_wizard(wizard)} {licence.replace('_', ' ')} access"
@@ -665,6 +680,7 @@ def create_checkout_session(
                 "duration_days": "",
             }
         )
+        licence_for_metadata = licence
 
     if not amount:
         return RedirectResponse("/?message=Price+not+found", status_code=303)
@@ -695,7 +711,7 @@ def create_checkout_session(
                 "club_name": club_name,
                 "contact_email": contact_email,
                 "competition_date": competition_date,
-                "licence": licence,
+                "licence": licence_for_metadata,
                 "mode": mode,
                 "event_id": event_id,
                 "duration_days": str(duration_days_int),
@@ -712,7 +728,7 @@ def create_checkout_session(
 
 @app.post("/stripe/webhook")
 async def stripe_webhook(request: Request):
-    # 🔴 Temporarily disable fulfilment here to avoid race condition
+    # Passive webhook for now: acknowledge receipt, but do not fulfil here.
     return JSONResponse({"ok": True})
 
 
@@ -724,23 +740,12 @@ def payment_success(request: Request, session_id: str | None = None):
     try:
         session = stripe.checkout.Session.retrieve(session_id)
     except Exception as e:
-        return HTMLResponse(
-            f"<h1>FULFILMENT ERROR</h1><pre>{e}</pre>"
-        )
+        return HTMLResponse(f"<h1>Stripe error</h1><pre>{e}</pre>")
 
     try:
         result = _fulfil_checkout_session(session)
     except Exception as e:
-        return RedirectResponse(
-            url=f"/?message=Fulfilment+error:+{urllib.parse.quote_plus(str(e))}",
-            status_code=303,
-        )
-
-    if result.get("already_fulfilled"):
-        return RedirectResponse(
-            url="/?message=Payment+already+processed",
-            status_code=303,
-        )
+        return HTMLResponse(f"<h1>FULFILMENT ERROR</h1><pre>{e}</pre>")
 
     if result.get("mode") == "extend":
         return RedirectResponse(
@@ -752,10 +757,7 @@ def payment_success(request: Request, session_id: str | None = None):
     if launch_url:
         return RedirectResponse(launch_url, status_code=303)
 
-    return RedirectResponse(
-        url="/?message=Unexpected+error+during+launch",
-        status_code=303,
-    )
+    return HTMLResponse("<h1>Unexpected error — no launch URL</h1>")
 
 
 @app.get("/return", response_class=HTMLResponse)
@@ -774,7 +776,7 @@ def return_form(request: Request):
 @app.post("/return", response_class=HTMLResponse)
 def return_lookup(request: Request, email: str = Form("")):
     email = (email or "").strip()
-    events = []
+    events: list[dict[str, Any]] = []
     message = ""
 
     if email:
