@@ -711,7 +711,24 @@ def create_checkout_session(
 
     base_url = _required_env("BASE_URL")
 
-    try:
+        try:
+        print("STRIPE METADATA TO SEND:")
+        print(
+            repr(
+                {
+                    "wizard": wizard,
+                    "event_name": event_name,
+                    "club_name": club_name,
+                    "contact_email": contact_email,
+                    "competition_date": competition_date,
+                    "licence": licence_for_metadata,
+                    "mode": mode,
+                    "event_id": event_id,
+                    "duration_days": str(duration_days_int),
+                }
+            )
+        )
+
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             mode="payment",
@@ -741,12 +758,14 @@ def create_checkout_session(
                 "duration_days": str(duration_days_int),
             },
         )
+
+        print("STRIPE SESSION CREATED ID:", repr(getattr(session, "id", "")))
+        print("STRIPE SESSION CREATED METADATA:", repr(getattr(session, "metadata", {})))
     except Exception as e:
         return RedirectResponse(
             f"/?message=Stripe+checkout+error:+{urllib.parse.quote_plus(str(e))}",
             status_code=303,
         )
-
     return RedirectResponse(session.url, status_code=303)
 
 
