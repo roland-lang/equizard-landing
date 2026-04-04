@@ -749,9 +749,7 @@ def payment_success(request: Request, session_id: str | None = None):
     try:
         session = stripe.checkout.Session.retrieve(session_id)
     except Exception as e:
-        return RedirectResponse(
-            url=f"/?message=Stripe+session+error:+{urllib.parse.quote_plus(str(e))}",
-            status_code=303,
+        return HTMLResponse(f"<h1>FULFILMENT ERROR</h1><pre>{e}</pre>")           status_code=303,
         )
 
     try:
