@@ -105,6 +105,46 @@ def _stripe_webhook_secret() -> str:
     return _required_env("STRIPE_WEBHOOK_SECRET")
 
 
+# -----------------------------------------------------
+# Safe Stripe helpers
+# -----------------------------------------------------
+def _session_field(session: Any, key: str, default: Any = "") -> Any:
+    """
+    Works with:
+      - webhook payload dicts
+      - Stripe SDK objects
+    """
+    if isinstance(session, dict):
+        return session.get(key, default)
+
+    try:
+        return getattr(session, key, default)
+    except Exception:
+        return default
+
+
+def _session_metadata(session: Any) -> dict:
+    meta = _session_field(session, "metadata", {}) or {}
+
+    if isinstance(meta, dict):
+        return meta
+
+    try:
+        return dict(meta)
+    except Exception:
+        return {}
+
+
+def _meta_str(meta: dict, key: str, default: str = "") -> str:
+    try:
+        return str(meta.get(key, default)).strip()
+    except Exception:
+        return default
+
+
+# -----------------------------------------------------
+# Fulfilled session ledger
+# -----------------------------------------------------
 def _load_fulfilled_sessions() -> set[str]:
     if not FULFILLED_SESSIONS_PATH.exists():
         return set()
@@ -138,33 +178,6 @@ def _mark_session_fulfilled(session_id: str) -> None:
     _save_fulfilled_sessions(fulfilled)
 
 
-def _session_field(session: Any, key: str, default: Any = "") -> Any:
-    """
-    Support both:
-      - webhook payload objects (dict-like)
-      - stripe objects returned by Session.retrieve(...)
-    """
-    if isinstance(session, dict):
-        return session.get(key, default)
-
-    try:
-        return getattr(session, key, default)
-    except Exception:
-        return default
-
-
-def _session_metadata(session: Any) -> dict:
-    meta = _session_field(session, "metadata", {}) or {}
-
-    if isinstance(meta, dict):
-        return meta
-
-    try:
-        return dict(meta)
-    except Exception:
-        return {}
-
-
 # -----------------------------------------------------
 # Stripe init
 # -----------------------------------------------------
@@ -172,7 +185,7 @@ stripe.api_key = _required_env("STRIPE_SECRET_KEY")
 
 
 # -----------------------------------------------------
-# Bridge: create event in TriWizard
+# TriWizard bridge helpers
 # -----------------------------------------------------
 def _create_event_in_triwizard(
     wizard: str,
@@ -271,9 +284,6 @@ def _extend_access_in_triwizard(
     return payload
 
 
-# -----------------------------------------------------
-# Bridge: get return links
-# -----------------------------------------------------
 def _get_return_links_from_triwizard(contact_email: str) -> list[dict]:
     return_url = _required_env("TRIWIZARD_RETURN_URL")
     shared_secret = _required_env("PORTAL_SHARED_SECRET")
@@ -303,13 +313,6 @@ def _get_return_links_from_triwizard(contact_email: str) -> list[dict]:
 # -----------------------------------------------------
 # Fulfilment
 # -----------------------------------------------------
-def _meta_str(meta: dict, key: str, default: str = "") -> str:
-    try:
-        return str(meta.get(key, default)).strip()
-    except Exception:
-        return default
-
-
 def _fulfil_checkout_session(session: Any) -> dict:
     session_id = str(_session_field(session, "id", "") or "").strip()
     if not session_id:
@@ -736,7 +739,9 @@ def payment_success(request: Request, session_id: str | None = None):
     contact_email = _meta_str(meta, "contact_email")
     competition_date = _meta_str(meta, "competition_date")
 
-    wizard_title = _title_for_wizard(wizard if wizard in {"triwizard", "tetwizard"} else "triwizard")
+    wizard_title = _title_for_wizard(
+        wizard if wizard in {"triwizard", "tetwizard"} else "triwizard"
+    )
 
     message = (
         "Your payment has been received. We are finishing things off now."
