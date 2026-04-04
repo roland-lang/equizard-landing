@@ -326,12 +326,17 @@ def _fulfil_checkout_session(session: Any) -> dict[str, Any]:
     if _is_session_fulfilled(session_id):
         raise RuntimeError("Payment already processed")
 
-    full_session = stripe.checkout.Session.retrieve(session_id)
-
-    payment_status = str(_session_field(full_session, "payment_status", "") or "").strip().lower()
-    if payment_status != "paid":
-        raise RuntimeError(f"Session not paid (payment_status={payment_status})")
-
+        full_session = stripe.checkout.Session.retrieve(session_id)
+        print("FULL SESSION TYPE:", type(full_session))
+        print("FULL SESSION RAW METADATA ATTR:", repr(getattr(full_session, "metadata", None)))
+        print(
+            "FULL SESSION RAW TO_DICT:",
+            repr(full_session.to_dict_recursive() if hasattr(full_session, "to_dict_recursive") else "NO_TO_DICT"),
+        )
+    
+        payment_status = str(_session_field(full_session, "payment_status", "") or "").strip().lower()
+        if payment_status != "paid":
+            raise RuntimeError(f"Session not paid (payment_status={payment_status})")
     meta = _session_metadata(full_session)
 
     print("FULFIL_CHECKOUT_SESSION META:")
