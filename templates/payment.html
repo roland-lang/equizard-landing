@@ -126,16 +126,28 @@
       {% endif %}
 
       <form method="post" action="/create-checkout-session">
-        <input type="hidden" name="wizard" value="{{ wizard if wizard in ['triwizard', 'tetwizard'] else 'triwizard' }}">
-        <input type="hidden" name="event_name" value="{{ event_name or '' }}">
-        <input type="hidden" name="club_name" value="{{ club_name or '' }}">
-        <input type="hidden" name="contact_email" value="{{ contact_email or '' }}">
-        <input type="hidden" name="competition_date" value="{{ competition_date or '' }}">
-        <input type="hidden" name="licence" value="{{ licence if licence in ['2_week', '1_month'] else '2_week' }}">
-        <input type="hidden" name="mode" value="{{ mode if mode in ['activate', 'extend'] else 'activate' }}">
-        <input type="hidden" name="event_id" value="{{ event_id or '' }}">
-        <input type="hidden" name="duration_days" value="{{ duration_days if duration_days in [7, 14, 30, '7', '14', '30'] else '' }}">
 
+        <input type="hidden" name="wizard" value="{{ wizard if wizard in ['triwizard','tetwizard'] else 'triwizard' }}">
+      
+        <!-- 🔥 CRITICAL FIELDS -->
+        <input type="hidden" name="event_name" value="{{ event_name | default('', true) }}">
+        <input type="hidden" name="competition_date" value="{{ competition_date | default('', true) }}">
+      
+        <!-- These are fine but make consistent -->
+        <input type="hidden" name="club_name" value="{{ club_name | default('', true) }}">
+        <input type="hidden" name="contact_email" value="{{ contact_email | default('', true) }}">
+      
+        <input type="hidden" name="licence" value="{{ licence if licence in ['2_week','1_month'] else '2_week' }}">
+        <input type="hidden" name="mode" value="{{ mode if mode in ['activate','extend'] else 'activate' }}">
+      
+        <input type="hidden" name="event_id" value="{{ event_id | default('', true) }}">
+        <input type="hidden" name="duration_days" value="{{ duration_days if duration_days in [7,14,30,'7','14','30'] else '' }}">
+      
+        <button class="btn">
+          Proceed to secure payment
+        </button>
+      
+      </form>
         <button class="btn">
           Proceed to secure payment
         </button>
