@@ -129,11 +129,16 @@ def _session_metadata(session: Any) -> dict[str, Any]:
     if isinstance(meta, dict):
         return meta
 
+    if hasattr(meta, "to_dict_recursive"):
+        try:
+            return meta.to_dict_recursive()
+        except Exception:
+            pass
+
     try:
-        return dict(meta)
+        return {str(k): meta[k] for k in meta.keys()}
     except Exception:
         return {}
-
 
 def _meta_str(meta: dict[str, Any], key: str, default: str = "") -> str:
     try:
