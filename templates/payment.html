@@ -128,7 +128,7 @@
       {% endif %}
 
       <form method="post" action="/create-checkout-session">
-        <input type="hidden" name="wizard" value="{{ wizard }}">
+        <input type="hidden" name="wizard" value="{{ wizard or 'triwizard' }}">
         <input type="hidden" name="event_name" value="{{ event_name }}">
         <input type="hidden" name="club_name" value="{{ club_name }}">
         <input type="hidden" name="contact_email" value="{{ contact_email }}">
