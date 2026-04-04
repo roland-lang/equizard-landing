@@ -412,7 +412,6 @@ def _fulfil_checkout_session(session: Any) -> dict[str, Any]:
         "session_id": session_id,
         "launch_url": launch_url,
     }
-
 # -----------------------------------------------------
 # Routes
 # -----------------------------------------------------
