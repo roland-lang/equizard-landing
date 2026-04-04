@@ -106,9 +106,7 @@
 
       <div class="summary">
         <strong>Product:</strong> {{ wizard_title }}<br>
-        <strong>
-          {% if mode == "extend" %}Extension:{% else %}Licence:{% endif %}
-        </strong>
+        <strong>{% if mode == "extend" %}Extension:{% else %}Licence:{% endif %}</strong>
         {{ licence_label }}<br>
         <strong>Event:</strong> {{ event_name or "-" }}<br>
         <strong>Organiser:</strong> {{ club_name or "-" }}<br>
@@ -128,29 +126,21 @@
       {% endif %}
 
       <form method="post" action="/create-checkout-session">
+        <input type="hidden" name="wizard" value="{{ wizard if wizard in ['triwizard', 'tetwizard'] else 'triwizard' }}">
+        <input type="hidden" name="event_name" value="{{ event_name or '' }}">
+        <input type="hidden" name="club_name" value="{{ club_name or '' }}">
+        <input type="hidden" name="contact_email" value="{{ contact_email or '' }}">
+        <input type="hidden" name="competition_date" value="{{ competition_date or '' }}">
+        <input type="hidden" name="licence" value="{{ licence if licence in ['2_week', '1_month'] else '2_week' }}">
+        <input type="hidden" name="mode" value="{{ mode if mode in ['activate', 'extend'] else 'activate' }}">
+        <input type="hidden" name="event_id" value="{{ event_id or '' }}">
+        <input type="hidden" name="duration_days" value="{{ duration_days if duration_days in [7, 14, 30, '7', '14', '30'] else '' }}">
 
-          <input type="hidden" name="wizard" value="{{ wizard if wizard in ['triwizard','tetwizard'] else 'triwizard' }}">
-        
-          <input type="hidden" name="event_name" value="{{ event_name or '' }}">
-          <input type="hidden" name="club_name" value="{{ club_name or '' }}">
-          <input type="hidden" name="contact_email" value="{{ contact_email or '' }}">
-          <input type="hidden" name="competition_date" value="{{ competition_date or '' }}">
-        
-          <!-- 🔥 CRITICAL FIX -->
-          <input type="hidden" name="licence" value="{{ licence if licence in ['2_week','1_month'] else '2_week' }}">
-        
-          <!-- 🔥 CRITICAL FIX -->
-          <input type="hidden" name="mode" value="{{ mode if mode in ['activate','extend'] else 'activate' }}">
-        
-          <input type="hidden" name="event_id" value="{{ event_id or '' }}">
-        
-          <!-- 🔥 CRITICAL FIX -->
-          <input type="hidden" name="duration_days" value="{{ duration_days if duration_days in [7,14,30,'7','14','30'] else '' }}">
-        
-          <button class="btn">
-            Proceed to secure payment
-          </button>
-        </form>
+        <button class="btn">
+          Proceed to secure payment
+        </button>
+      </form>
+
       {% if mode == "extend" %}
         <a class="back" href="https://equizard.co.uk">
           ← Back
@@ -158,7 +148,7 @@
       {% else %}
         <a
           class="back"
-          href="/{{ wizard }}?event_name={{ event_name | urlencode }}&club_name={{ club_name | urlencode }}&contact_email={{ contact_email | urlencode }}&competition_date={{ competition_date | urlencode }}&licence={{ licence or '2_week' }}"
+          href="/{{ wizard if wizard in ['triwizard', 'tetwizard'] else 'triwizard' }}?event_name={{ event_name | urlencode }}&club_name={{ club_name | urlencode }}&contact_email={{ contact_email | urlencode }}&competition_date={{ competition_date | urlencode }}&licence={{ licence if licence in ['2_week', '1_month'] else '2_week' }}"
         >
           ← Back
         </a>
