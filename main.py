@@ -338,28 +338,27 @@ def _fulfil_checkout_session(session: Any) -> dict[str, Any]:
         repr(full_session.to_dict_recursive() if hasattr(full_session, "to_dict_recursive") else "NO_TO_DICT"),
     )
 
-    meta = _session_metadata(full_session)
+    meta_obj = _session_field(full_session, "metadata", {}) or {}
 
-    print("FULFIL_CHECKOUT_SESSION META:")
-    print(repr(meta))
+    print("FULFIL METADATA OBJ:", repr(meta_obj))
     print("FULFIL SESSION customer_email:", repr(_session_field(full_session, "customer_email", "")))
     print("FULFIL SESSION customer_details:", repr(_session_field(full_session, "customer_details", {})))
-
-    wizard = _meta_str(meta, "wizard", "triwizard").lower()
+    
+    wizard = str(_session_field(meta_obj, "wizard", "triwizard") or "triwizard").strip().lower()
     if wizard not in {"triwizard", "tetwizard"}:
         wizard = "triwizard"
-
-    mode = _meta_str(meta, "mode", "activate").lower()
+    
+    mode = str(_session_field(meta_obj, "mode", "activate") or "activate").strip().lower()
     if mode not in {"activate", "extend"}:
         mode = "activate"
-
-    event_name = _meta_str(meta, "event_name")
-    club_name = _meta_str(meta, "club_name")
-    contact_email = _meta_str(meta, "contact_email")
-    competition_date = _meta_str(meta, "competition_date")
-    licence = _normalise_paid_licence(_meta_str(meta, "licence"))
-    event_id = _meta_str(meta, "event_id")
-    duration_days = _safe_duration_days(_meta_str(meta, "duration_days", "0"))
+    
+    event_name = str(_session_field(meta_obj, "event_name", "") or "").strip()
+    club_name = str(_session_field(meta_obj, "club_name", "") or "").strip()
+    contact_email = str(_session_field(meta_obj, "contact_email", "") or "").strip()
+    competition_date = str(_session_field(meta_obj, "competition_date", "") or "").strip()
+    licence = _normalise_paid_licence(str(_session_field(meta_obj, "licence", "") or "").strip())
+    event_id = str(_session_field(meta_obj, "event_id", "") or "").strip()
+    duration_days = _safe_duration_days(str(_session_field(meta_obj, "duration_days", "0") or "0").strip())
     if not contact_email:
         contact_email = str(_session_field(full_session, "customer_email", "") or "").strip()
 
