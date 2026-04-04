@@ -330,7 +330,12 @@ def _fulfil_checkout_session(session: Any) -> dict[str, Any]:
     if payment_status != "paid":
         raise RuntimeError(f"Session not paid (payment_status={payment_status})")
 
-    meta = _session_metadata(session)
+    # ALWAYS fetch full session from Stripe
+    session_id = str(_session_field(session, "id", "") or "").strip()
+    
+    full_session = stripe.checkout.Session.retrieve(session_id)
+    
+    meta = _session_metadata(full_session)
 
     print("FULFIL_CHECKOUT_SESSION META:")
     print(repr(meta))
