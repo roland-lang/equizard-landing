@@ -313,15 +313,11 @@ def _get_return_links_from_triwizard(contact_email: str) -> list[dict]:
 # -----------------------------------------------------
 # Fulfilment
 # -----------------------------------------------------
-
 def _fulfil_checkout_session(session: Any) -> dict:
     session_id = str(_session_field(session, "id", "") or "").strip()
     if not session_id:
         raise RuntimeError("Missing Stripe session id")
 
-    # --------------------------------------------
-    # Prevent duplicate fulfilment
-    # --------------------------------------------
     if _is_session_fulfilled(session_id):
         return {
             "ok": True,
@@ -329,18 +325,12 @@ def _fulfil_checkout_session(session: Any) -> dict:
             "session_id": session_id,
         }
 
-    # --------------------------------------------
-    # Ensure payment completed
-    # --------------------------------------------
     payment_status = str(_session_field(session, "payment_status", "") or "").strip().lower()
     if payment_status != "paid":
         raise RuntimeError(f"Session not paid (payment_status={payment_status})")
 
     meta = _session_metadata(session)
 
-    # --------------------------------------------
-    # SAFE METADATA EXTRACTION (never fail here)
-    # --------------------------------------------
     wizard = _meta_str(meta, "wizard", "triwizard").lower()
     if wizard not in {"triwizard", "tetwizard"}:
         wizard = "triwizard"
@@ -355,9 +345,6 @@ def _fulfil_checkout_session(session: Any) -> dict:
     event_id = _meta_str(meta, "event_id")
     duration_days = _safe_duration_days(_meta_str(meta, "duration_days", "0"))
 
-    # --------------------------------------------
-    # EXTENSION FLOW
-    # --------------------------------------------
     if mode == "extend":
         if not event_id:
             raise RuntimeError("Missing event_id for extension")
@@ -376,28 +363,18 @@ def _fulfil_checkout_session(session: Any) -> dict:
             "result": result,
         }
 
-    # --------------------------------------------
-    # ACTIVATION FLOW (IMPORTANT FIXES HERE)
-    # --------------------------------------------
-
-    # 🔥 FIX 1: Licence fallback (prevents your crash)
     if licence not in {"2_week", "1_month"}:
-        licence = "1_month"  # safe default
+        licence = "1_month"
 
-    # 🔥 FIX 2: Do NOT fail on bad/missing date
     if not _parse_competition_date(competition_date):
         competition_date = ""
 
-    # 🔥 FIX 3: Ensure minimal required data exists
     if not event_name:
         event_name = "New Event"
 
     if not contact_email:
-        contact_email = ""
+        raise RuntimeError("Missing contact_email in metadata")
 
-    # --------------------------------------------
-    # Create event via bridge
-    # --------------------------------------------
     launch_url = _create_event_in_triwizard(
         wizard=wizard,
         event_name=event_name,
@@ -409,9 +386,6 @@ def _fulfil_checkout_session(session: Any) -> dict:
         external_ref=session_id,
     )
 
-    # --------------------------------------------
-    # Mark fulfilled
-    # --------------------------------------------
     _mark_session_fulfilled(session_id)
 
     return {
@@ -420,6 +394,7 @@ def _fulfil_checkout_session(session: Any) -> dict:
         "session_id": session_id,
         "launch_url": launch_url,
     }
+
 
 # -----------------------------------------------------
 # Routes
@@ -562,18 +537,20 @@ def payment_page(
     event_id: str = "",
     duration_days: str = "",
 ):
-    wizard = (wizard or "").strip().lower()
+    wizard = (wizard or "triwizard").strip().lower()
     licence = _normalise_licence(licence)
     mode = _normalise_mode(mode)
     event_id = (event_id or "").strip()
     duration_days_int = _safe_duration_days(duration_days) if duration_days else 0
 
-    wizard_title = _title_for_wizard(wizard or "triwizard")
+    wizard_title = _title_for_wizard(wizard)
 
     if mode == "extend":
         licence_label = _duration_label(duration_days_int)
         warning = ""
     else:
+        if licence not in {"2_week", "1_month"}:
+            licence = "2_week"
         licence_label = {
             "2_week": "2-week access",
             "1_month": "1-month access",
@@ -629,7 +606,7 @@ def create_checkout_session(
             return RedirectResponse("/?message=Invalid+extension+duration", status_code=303)
     else:
         if licence not in {"2_week", "1_month"}:
-            return RedirectResponse("/?message=Invalid+licence", status_code=303)
+            licence = "2_week"
         if not _parse_competition_date(competition_date):
             return RedirectResponse("/?message=Please+enter+a+valid+event+date", status_code=303)
 
@@ -759,9 +736,6 @@ def payment_success(request: Request, session_id: str | None = None):
     if not session_id:
         return RedirectResponse("/?message=Missing+payment+session", status_code=303)
 
-    # -------------------------------------------------
-    # Retrieve Stripe session safely
-    # -------------------------------------------------
     try:
         session = stripe.checkout.Session.retrieve(session_id)
     except Exception as e:
@@ -770,9 +744,6 @@ def payment_success(request: Request, session_id: str | None = None):
             status_code=303,
         )
 
-    # -------------------------------------------------
-    # Attempt fulfilment immediately
-    # -------------------------------------------------
     try:
         result = _fulfil_checkout_session(session)
     except Exception as e:
@@ -781,44 +752,27 @@ def payment_success(request: Request, session_id: str | None = None):
             status_code=303,
         )
 
-    # -------------------------------------------------
-    # If already fulfilled (refresh / retry case)
-    # -------------------------------------------------
     if result.get("already_fulfilled"):
-        # Try to reconstruct launch if possible
-        launch_url = result.get("launch_url")
-        if launch_url:
-            return RedirectResponse(launch_url, status_code=303)
-
         return RedirectResponse(
             url="/?message=Payment+already+processed",
             status_code=303,
         )
 
-    # -------------------------------------------------
-    # EXTENSION FLOW
-    # -------------------------------------------------
     if result.get("mode") == "extend":
         return RedirectResponse(
             url="/?message=Extension+applied+successfully",
             status_code=303,
         )
 
-    # -------------------------------------------------
-    # ACTIVATION FLOW (PRIMARY PATH 🚀)
-    # -------------------------------------------------
     launch_url = result.get("launch_url")
-
     if launch_url:
         return RedirectResponse(launch_url, status_code=303)
 
-    # -------------------------------------------------
-    # Fallback (should never happen)
-    # -------------------------------------------------
     return RedirectResponse(
         url="/?message=Unexpected+error+during+launch",
         status_code=303,
     )
+
 
 @app.get("/return", response_class=HTMLResponse)
 def return_form(request: Request):
