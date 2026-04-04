@@ -7,6 +7,7 @@ import urllib.parse
 import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import stripe
 from fastapi import FastAPI, Form, Request
@@ -135,6 +136,33 @@ def _mark_session_fulfilled(session_id: str) -> None:
     fulfilled = _load_fulfilled_sessions()
     fulfilled.add(session_id)
     _save_fulfilled_sessions(fulfilled)
+
+
+def _session_field(session: Any, key: str, default: Any = "") -> Any:
+    """
+    Support both:
+      - webhook payload objects (dict-like)
+      - stripe objects returned by Session.retrieve(...)
+    """
+    if isinstance(session, dict):
+        return session.get(key, default)
+
+    try:
+        return getattr(session, key, default)
+    except Exception:
+        return default
+
+
+def _session_metadata(session: Any) -> dict:
+    meta = _session_field(session, "metadata", {}) or {}
+
+    if isinstance(meta, dict):
+        return meta
+
+    try:
+        return dict(meta)
+    except Exception:
+        return {}
 
 
 # -----------------------------------------------------
@@ -282,19 +310,19 @@ def _meta_str(meta: dict, key: str, default: str = "") -> str:
         return default
 
 
-def _fulfil_checkout_session(session: stripe.checkout.Session) -> dict:
-    session_id = str(getattr(session, "id", "") or "").strip()
+def _fulfil_checkout_session(session: Any) -> dict:
+    session_id = str(_session_field(session, "id", "") or "").strip()
     if not session_id:
         raise RuntimeError("Missing Stripe session id")
 
     if _is_session_fulfilled(session_id):
         return {"ok": True, "already_fulfilled": True, "session_id": session_id}
 
-    payment_status = str(getattr(session, "payment_status", "") or "").strip().lower()
+    payment_status = str(_session_field(session, "payment_status", "") or "").strip().lower()
     if payment_status != "paid":
         raise RuntimeError(f"Session not paid (payment_status={payment_status})")
 
-    meta = getattr(session, "metadata", None) or {}
+    meta = _session_metadata(session)
 
     wizard = _meta_str(meta, "wizard").lower()
     event_name = _meta_str(meta, "event_name")
@@ -698,20 +726,20 @@ def payment_success(request: Request, session_id: str | None = None):
             status_code=303,
         )
 
-    payment_status = str(getattr(session, "payment_status", "") or "").strip().lower()
-    meta = getattr(session, "metadata", None) or {}
+    payment_status = str(_session_field(session, "payment_status", "") or "").strip().lower()
+    meta = _session_metadata(session)
 
-    wizard = str(meta.get("wizard", "triwizard")).strip().lower()
-    mode = str(meta.get("mode", "activate")).strip().lower()
-    event_name = str(meta.get("event_name", "")).strip()
-    club_name = str(meta.get("club_name", "")).strip()
-    contact_email = str(meta.get("contact_email", "")).strip()
-    competition_date = str(meta.get("competition_date", "")).strip()
+    wizard = _meta_str(meta, "wizard", "triwizard").lower()
+    mode = _meta_str(meta, "mode", "activate").lower()
+    event_name = _meta_str(meta, "event_name")
+    club_name = _meta_str(meta, "club_name")
+    contact_email = _meta_str(meta, "contact_email")
+    competition_date = _meta_str(meta, "competition_date")
 
     wizard_title = _title_for_wizard(wizard if wizard in {"triwizard", "tetwizard"} else "triwizard")
 
     message = (
-        "Your payment has been received. We are finishing things off in the background."
+        "Your payment has been received. We are finishing things off now."
         if payment_status == "paid"
         else "Your checkout has completed, but payment is not yet marked as paid."
     )
