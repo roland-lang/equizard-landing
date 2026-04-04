@@ -6,10 +6,11 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 import stripe
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -18,6 +19,9 @@ app = FastAPI(title="Equizard")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+DATA_DIR = Path("data")
+FULFILLED_SESSIONS_PATH = DATA_DIR / "fulfilled_checkout_sessions.json"
 
 
 # -----------------------------------------------------
@@ -96,6 +100,43 @@ def _triwizard_public_base_url() -> str:
     return _required_env("TRIWIZARD_PUBLIC_BASE_URL").rstrip("/")
 
 
+def _stripe_webhook_secret() -> str:
+    return _required_env("STRIPE_WEBHOOK_SECRET")
+
+
+def _load_fulfilled_sessions() -> set[str]:
+    if not FULFILLED_SESSIONS_PATH.exists():
+        return set()
+
+    try:
+        data = json.loads(FULFILLED_SESSIONS_PATH.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            return {str(x).strip() for x in data if str(x).strip()}
+        return set()
+    except Exception:
+        return set()
+
+
+def _save_fulfilled_sessions(session_ids: set[str]) -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    FULFILLED_SESSIONS_PATH.write_text(
+        json.dumps(sorted(session_ids), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _is_session_fulfilled(session_id: str) -> bool:
+    return session_id in _load_fulfilled_sessions()
+
+
+def _mark_session_fulfilled(session_id: str) -> None:
+    if not session_id:
+        return
+    fulfilled = _load_fulfilled_sessions()
+    fulfilled.add(session_id)
+    _save_fulfilled_sessions(fulfilled)
+
+
 # -----------------------------------------------------
 # Stripe init
 # -----------------------------------------------------
@@ -113,6 +154,7 @@ def _create_event_in_triwizard(
     competition_date: str,
     licence: str = "free",
     payment_status: str = "none",
+    external_ref: str = "",
 ) -> str:
     bridge_url = _required_env("TRIWIZARD_BRIDGE_URL")
     shared_secret = _required_env("PORTAL_SHARED_SECRET")
@@ -132,7 +174,7 @@ def _create_event_in_triwizard(
             "source": "equizard",
             "payment_status": payment_status,
             "licence_duration": licence,
-            "external_ref": "",
+            "external_ref": external_ref,
         }
     ).encode("utf-8")
 
@@ -162,6 +204,45 @@ def _create_event_in_triwizard(
     return launch_url
 
 
+def _extend_access_in_triwizard(
+    event_id: str,
+    duration_days: int,
+) -> dict:
+    extend_url = f"{_triwizard_public_base_url()}/portal/extend-access"
+    shared_secret = _required_env("PORTAL_SHARED_SECRET")
+
+    form_data = urllib.parse.urlencode(
+        {
+            "event_id": (event_id or "").strip(),
+            "duration_days": str(_safe_duration_days(duration_days)),
+        }
+    ).encode("utf-8")
+
+    req = urllib.request.Request(
+        extend_url,
+        data=form_data,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-Portal-Secret": shared_secret,
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Extend HTTP {e.code}: {body}") from e
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Extend URL error: {e.reason}") from e
+
+    if not isinstance(payload, dict) or not payload.get("ok"):
+        raise RuntimeError(f"Extend failed: {payload}")
+
+    return payload
+
+
 # -----------------------------------------------------
 # Bridge: get return links
 # -----------------------------------------------------
@@ -189,6 +270,86 @@ def _get_return_links_from_triwizard(contact_email: str) -> list[dict]:
         payload = json.loads(resp.read().decode("utf-8"))
 
     return (payload or {}).get("links") or []
+
+
+# -----------------------------------------------------
+# Fulfilment
+# -----------------------------------------------------
+def _meta_str(meta: dict, key: str, default: str = "") -> str:
+    try:
+        return str(meta.get(key, default)).strip()
+    except Exception:
+        return default
+
+
+def _fulfil_checkout_session(session: stripe.checkout.Session) -> dict:
+    session_id = str(getattr(session, "id", "") or "").strip()
+    if not session_id:
+        raise RuntimeError("Missing Stripe session id")
+
+    if _is_session_fulfilled(session_id):
+        return {"ok": True, "already_fulfilled": True, "session_id": session_id}
+
+    payment_status = str(getattr(session, "payment_status", "") or "").strip().lower()
+    if payment_status != "paid":
+        raise RuntimeError(f"Session not paid (payment_status={payment_status})")
+
+    meta = getattr(session, "metadata", None) or {}
+
+    wizard = _meta_str(meta, "wizard").lower()
+    event_name = _meta_str(meta, "event_name")
+    club_name = _meta_str(meta, "club_name")
+    contact_email = _meta_str(meta, "contact_email")
+    competition_date = _meta_str(meta, "competition_date")
+    licence = _meta_str(meta, "licence").lower()
+    mode = _meta_str(meta, "mode", "activate").lower()
+    event_id = _meta_str(meta, "event_id")
+    duration_days = _safe_duration_days(_meta_str(meta, "duration_days", "0"))
+
+    if wizard not in {"triwizard", "tetwizard"}:
+        raise RuntimeError("Invalid wizard metadata")
+
+    if mode == "extend":
+        if not event_id:
+            raise RuntimeError("Missing event_id metadata for extension")
+
+        result = _extend_access_in_triwizard(
+            event_id=event_id,
+            duration_days=duration_days,
+        )
+        _mark_session_fulfilled(session_id)
+        return {
+            "ok": True,
+            "mode": "extend",
+            "session_id": session_id,
+            "result": result,
+        }
+
+    if licence not in {"2_week", "1_month"}:
+        raise RuntimeError("Invalid licence metadata")
+
+    if not _parse_competition_date(competition_date):
+        raise RuntimeError("Invalid competition_date metadata")
+
+    launch_url = _create_event_in_triwizard(
+        wizard=wizard,
+        event_name=event_name,
+        club_name=club_name,
+        contact_email=contact_email,
+        competition_date=competition_date,
+        licence=licence,
+        payment_status="paid",
+        external_ref=session_id,
+    )
+
+    _mark_session_fulfilled(session_id)
+
+    return {
+        "ok": True,
+        "mode": "activate",
+        "session_id": session_id,
+        "launch_url": launch_url,
+    }
 
 
 # -----------------------------------------------------
@@ -490,6 +651,40 @@ def create_checkout_session(
     return RedirectResponse(session.url, status_code=303)
 
 
+@app.post("/stripe/webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload=payload,
+            sig_header=sig_header,
+            secret=_stripe_webhook_secret(),
+        )
+    except ValueError:
+        return JSONResponse({"ok": False, "error": "Invalid payload"}, status_code=400)
+    except stripe.error.SignatureVerificationError:
+        return JSONResponse({"ok": False, "error": "Invalid signature"}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+    event_type = str(event.get("type", "") or "").strip()
+
+    if event_type == "checkout.session.completed":
+        session = event["data"]["object"]
+
+        try:
+            _fulfil_checkout_session(session)
+        except Exception as e:
+            return JSONResponse(
+                {"ok": False, "error": f"Fulfilment failed: {e}"},
+                status_code=500,
+            )
+
+    return JSONResponse({"ok": True})
+
+
 @app.get("/payment-success")
 def payment_success(request: Request, session_id: str | None = None):
     if not session_id:
@@ -503,78 +698,118 @@ def payment_success(request: Request, session_id: str | None = None):
             status_code=303,
         )
 
+    payment_status = str(getattr(session, "payment_status", "") or "").strip().lower()
     meta = getattr(session, "metadata", None) or {}
 
-    def meta_str(key: str, default: str = "") -> str:
-        try:
-            return str(meta[key]).strip()
-        except Exception:
-            return default
+    wizard = str(meta.get("wizard", "triwizard")).strip().lower()
+    mode = str(meta.get("mode", "activate")).strip().lower()
+    event_name = str(meta.get("event_name", "")).strip()
+    club_name = str(meta.get("club_name", "")).strip()
+    contact_email = str(meta.get("contact_email", "")).strip()
+    competition_date = str(meta.get("competition_date", "")).strip()
 
-    wizard = meta_str("wizard").lower()
-    event_name = meta_str("event_name")
-    club_name = meta_str("club_name")
-    contact_email = meta_str("contact_email")
-    competition_date = meta_str("competition_date")
-    licence = meta_str("licence").lower()
-    mode = meta_str("mode", "activate").lower()
-    event_id = meta_str("event_id")
-    duration_days = _safe_duration_days(meta_str("duration_days", "0"))
+    wizard_title = _title_for_wizard(wizard if wizard in {"triwizard", "tetwizard"} else "triwizard")
 
-    if wizard not in {"triwizard", "tetwizard"}:
-        return RedirectResponse("/?message=Invalid+wizard+metadata", status_code=303)
+    message = (
+        "Your payment has been received. We are finishing things off in the background."
+        if payment_status == "paid"
+        else "Your checkout has completed, but payment is not yet marked as paid."
+    )
 
-    if mode == "extend":
-        if not event_id:
-            return RedirectResponse("/?message=Missing+event+id+metadata", status_code=303)
+    return HTMLResponse(
+        f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>Payment received – Equizard</title>
+          <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+          <style>
+            body {{
+              margin:0;
+              font-family:'Montserrat', Arial, sans-serif;
+              background:#f6f7fb;
+              color:#111827;
+              padding:28px 18px 50px;
+            }}
+            .wrap {{
+              max-width:760px;
+              margin:0 auto;
+            }}
+            .card {{
+              background:#fff;
+              border:1px solid #e5e7eb;
+              border-radius:16px;
+              padding:22px;
+              box-shadow:0 4px 18px rgba(17,24,39,0.05);
+              text-align:center;
+            }}
+            h1 {{
+              margin-top:0;
+              margin-bottom:10px;
+            }}
+            .muted {{
+              color:#6b7280;
+              line-height:1.6;
+            }}
+            .summary {{
+              margin-top:16px;
+              padding:14px;
+              background:#f9fafb;
+              border:1px solid #e5e7eb;
+              border-radius:12px;
+              text-align:left;
+              line-height:1.6;
+            }}
+            .actions {{
+              margin-top:20px;
+              display:flex;
+              flex-wrap:wrap;
+              gap:12px;
+              justify-content:center;
+            }}
+            .btn {{
+              display:inline-block;
+              background:#2563eb;
+              color:#fff;
+              padding:12px 18px;
+              border-radius:10px;
+              font-size:16px;
+              font-weight:700;
+              text-decoration:none;
+            }}
+            .btn.secondary {{
+              background:#111827;
+            }}
+          </style>
+        </head>
+        <body>
+          <div class="wrap">
+            <div class="card">
+              <h1>Payment received</h1>
+              <p class="muted">{message}</p>
 
-        triwizard_base = _required_env("TRIWIZARD_PUBLIC_BASE_URL").rstrip("/")
+              <div class="summary">
+                <strong>Product:</strong> {wizard_title}<br>
+                <strong>Mode:</strong> {"Extension" if mode == "extend" else "Activation"}<br>
+                <strong>Event:</strong> {event_name or "-"}<br>
+                <strong>Organiser:</strong> {club_name or "-"}<br>
+                <strong>Email:</strong> {contact_email or "-"}<br>
+                {"<strong>Date of event:</strong> " + competition_date + "<br>" if competition_date else ""}
+                <strong>Stripe session:</strong> {session_id}
+              </div>
 
-        return HTMLResponse(
-            f"""
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-              <meta charset="utf-8" />
-              <meta name="viewport" content="width=device-width, initial-scale=1" />
-              <title>Completing extension…</title>
-            </head>
-            <body>
-              <form id="extendForm" method="post" action="{triwizard_base}/access/extend">
-                <input type="hidden" name="event_id" value="{event_id}">
-                <input type="hidden" name="duration_days" value="{duration_days}">
-              </form>
-              <script>
-                document.getElementById("extendForm").submit();
-              </script>
-            </body>
-            </html>
-            """
-        )
-
-    if licence not in {"2_week", "1_month"}:
-        return RedirectResponse("/?message=Invalid+licence+metadata", status_code=303)
-
-    if not _parse_competition_date(competition_date):
-        return RedirectResponse("/?message=Invalid+competition+date", status_code=303)
-
-    try:
-        launch_url = _create_event_in_triwizard(
-            wizard=wizard,
-            event_name=event_name,
-            club_name=club_name,
-            contact_email=contact_email,
-            competition_date=competition_date,
-            licence=licence,
-            payment_status="paid",
-        )
-    except Exception as e:
-        return RedirectResponse(
-            url=f"/?message=Bridge+error:+{urllib.parse.quote_plus(str(e))}",
-            status_code=303,
-        )
-
-    return RedirectResponse(launch_url, status_code=303)
+              <div class="actions">
+                <a class="btn" href="/return">Find my access links</a>
+                <a class="btn secondary" href="/">Back to home</a>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+        """
+    )
 
 
 @app.get("/return", response_class=HTMLResponse)
