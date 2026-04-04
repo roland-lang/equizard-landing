@@ -709,35 +709,7 @@ def create_checkout_session(
 
 @app.post("/stripe/webhook")
 async def stripe_webhook(request: Request):
-    payload = await request.body()
-    sig_header = request.headers.get("stripe-signature", "")
-
-    try:
-        event = stripe.Webhook.construct_event(
-            payload=payload,
-            sig_header=sig_header,
-            secret=_stripe_webhook_secret(),
-        )
-    except ValueError:
-        return JSONResponse({"ok": False, "error": "Invalid payload"}, status_code=400)
-    except stripe.error.SignatureVerificationError:
-        return JSONResponse({"ok": False, "error": "Invalid signature"}, status_code=400)
-    except Exception as e:
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
-
-    event_type = str(getattr(event, "type", "") or "").strip()
-
-    if event_type == "checkout.session.completed":
-        session = event.data.object
-
-        try:
-            _fulfil_checkout_session(session)
-        except Exception as e:
-            return JSONResponse(
-                {"ok": False, "error": f"Fulfilment failed: {e}"},
-                status_code=500,
-            )
-
+    # 🔴 Temporarily disable fulfilment here to avoid race condition
     return JSONResponse({"ok": True})
 
 
