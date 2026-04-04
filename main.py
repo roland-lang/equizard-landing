@@ -332,10 +332,15 @@ def _fulfil_checkout_session(session: Any) -> dict[str, Any]:
 
     meta = _session_metadata(session)
 
+    print("FULFIL_CHECKOUT_SESSION META:")
+    print(repr(meta))
+    print("FULFIL SESSION customer_email:", repr(_session_field(session, "customer_email", "")))
+    print("FULFIL SESSION customer_details:", repr(_session_field(session, "customer_details", {})))
+
     wizard = _meta_str(meta, "wizard", "triwizard").lower()
     if wizard not in {"triwizard", "tetwizard"}:
         wizard = "triwizard"
-
+        
     mode = _meta_str(meta, "mode", "activate").lower()
     if mode not in {"activate", "extend"}:
         mode = "activate"
