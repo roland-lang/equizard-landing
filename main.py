@@ -616,6 +616,17 @@ def create_checkout_session(
     event_id: str = Form(""),
     duration_days: str = Form(""),
 ):
+    print("CREATE_CHECKOUT_SESSION VALUES:")
+    print("wizard:", repr(wizard))
+    print("event_name:", repr(event_name))
+    print("club_name:", repr(club_name))
+    print("contact_email:", repr(contact_email))
+    print("competition_date:", repr(competition_date))
+    print("licence:", repr(licence))
+    print("mode:", repr(mode))
+    print("event_id:", repr(event_id))
+    print("duration_days:", repr(duration_days))
+
     wizard = (wizard or "triwizard").strip().lower()
     if wizard not in {"triwizard", "tetwizard"}:
         return RedirectResponse("/?message=Invalid+wizard", status_code=303)
@@ -627,7 +638,6 @@ def create_checkout_session(
     mode = _normalise_mode(mode)
     event_id = (event_id or "").strip()
     duration_days_int = _safe_duration_days(duration_days) if duration_days else 0
-
     if mode == "extend":
         if not event_id:
             return RedirectResponse("/?message=Missing+event+id+for+extension", status_code=303)
