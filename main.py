@@ -326,26 +326,24 @@ def _fulfil_checkout_session(session: Any) -> dict[str, Any]:
     if _is_session_fulfilled(session_id):
         raise RuntimeError("Payment already processed")
 
-    payment_status = str(_session_field(session, "payment_status", "") or "").strip().lower()
+    # Always fetch the full session from Stripe before reading anything important
+    full_session = stripe.checkout.Session.retrieve(session_id)
+
+    payment_status = str(_session_field(full_session, "payment_status", "") or "").strip().lower()
     if payment_status != "paid":
         raise RuntimeError(f"Session not paid (payment_status={payment_status})")
 
-    # ALWAYS fetch full session from Stripe
-    session_id = str(_session_field(session, "id", "") or "").strip()
-    
-    full_session = stripe.checkout.Session.retrieve(session_id)
-    
     meta = _session_metadata(full_session)
 
     print("FULFIL_CHECKOUT_SESSION META:")
     print(repr(meta))
-    print("FULFIL SESSION customer_email:", repr(_session_field(session, "customer_email", "")))
-    print("FULFIL SESSION customer_details:", repr(_session_field(session, "customer_details", {})))
+    print("FULFIL SESSION customer_email:", repr(_session_field(full_session, "customer_email", "")))
+    print("FULFIL SESSION customer_details:", repr(_session_field(full_session, "customer_details", {})))
 
     wizard = _meta_str(meta, "wizard", "triwizard").lower()
     if wizard not in {"triwizard", "tetwizard"}:
         wizard = "triwizard"
-        
+
     mode = _meta_str(meta, "mode", "activate").lower()
     if mode not in {"activate", "extend"}:
         mode = "activate"
@@ -359,10 +357,10 @@ def _fulfil_checkout_session(session: Any) -> dict[str, Any]:
     duration_days = _safe_duration_days(_meta_str(meta, "duration_days", "0"))
 
     if not contact_email:
-        contact_email = str(_session_field(session, "customer_email", "") or "").strip()
+        contact_email = str(_session_field(full_session, "customer_email", "") or "").strip()
 
     if not contact_email:
-        customer_details = _session_field(session, "customer_details", {}) or {}
+        customer_details = _session_field(full_session, "customer_details", {}) or {}
         if isinstance(customer_details, dict):
             contact_email = str(customer_details.get("email", "") or "").strip()
         else:
@@ -414,7 +412,6 @@ def _fulfil_checkout_session(session: Any) -> dict[str, Any]:
         "session_id": session_id,
         "launch_url": launch_url,
     }
-
 
 # -----------------------------------------------------
 # Routes
