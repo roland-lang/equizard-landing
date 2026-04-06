@@ -778,9 +778,35 @@ def create_checkout_session(
 
 @app.post("/stripe/webhook")
 async def stripe_webhook(request: Request):
-    # Passive webhook for now: acknowledge receipt, but do not fulfil here.
-    return JSONResponse({"ok": True})
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature", "")
 
+    try:
+        event = stripe.Webhook.construct_event(
+            payload=payload,
+            sig_header=sig_header,
+            secret=_stripe_webhook_secret(),
+        )
+    except ValueError:
+        return JSONResponse({"ok": False, "error": "Invalid payload"}, status_code=400)
+    except stripe.error.SignatureVerificationError:
+        return JSONResponse({"ok": False, "error": "Invalid signature"}, status_code=400)
+    except Exception as e:
+        print("WEBHOOK ERROR (construct_event):", e)
+        return JSONResponse({"ok": False, "error": "Webhook error"}, status_code=400)
+
+    event_type = event.get("type", "")
+    obj = (event.get("data") or {}).get("object") or {}
+
+    if event_type == "checkout.session.completed":
+        try:
+            _fulfil_checkout_session(obj)
+        except Exception as e:
+            # Important: log it, but do not expose details to Stripe/user
+            print("WEBHOOK FULFILMENT ERROR:", e)
+            return JSONResponse({"ok": False, "error": "Fulfilment failed"}, status_code=500)
+
+    return JSONResponse({"ok": True})
 
 @app.get("/payment-success")
 def payment_success(request: Request, session_id: str | None = None):
