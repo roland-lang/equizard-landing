@@ -777,6 +777,7 @@ def create_checkout_session(
 
 
 import stripe
+import traceback
 
 @app.post("/stripe/webhook")
 async def stripe_webhook(request: Request):
@@ -791,26 +792,26 @@ async def stripe_webhook(request: Request):
             endpoint_secret,
         )
     except Exception as e:
-    print("WEBHOOK ERROR:", repr(e))
-    traceback.print_exc()
-    return JSONResponse({"error": str(e)}, status_code=400)
-    
+        print("WEBHOOK ERROR:", repr(e))
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=400)
+
     try:
         event_type = event.get("type", "")
         print("WEBHOOK RECEIVED:", event_type)
 
         if event_type == "checkout.session.completed":
             session = (event.get("data") or {}).get("object") or {}
+            print("WEBHOOK SESSION ID:", session.get("id"))
             _fulfil_checkout_session(session)
 
-    import traceback
+    except Exception as e:
+        print("WEBHOOK FULFILMENT ERROR:", repr(e))
+        traceback.print_exc()
+        return JSONResponse({"error": "Fulfilment failed"}, status_code=500)
 
-except Exception as e:
-    print("WEBHOOK FULFILMENT ERROR:", repr(e))
-    traceback.print_exc()
-    return JSONResponse({"error": "Fulfilment failed"}, status_code=500)
-    
     return JSONResponse({"ok": True})
+
 
 @app.get("/payment-success")
 def payment_success(request: Request, session_id: str | None = None):
