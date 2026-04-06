@@ -791,9 +791,10 @@ async def stripe_webhook(request: Request):
             endpoint_secret,
         )
     except Exception as e:
-        print("WEBHOOK ERROR:", str(e))
-        return JSONResponse({"error": str(e)}, status_code=400)
-
+    print("WEBHOOK ERROR:", repr(e))
+    traceback.print_exc()
+    return JSONResponse({"error": str(e)}, status_code=400)
+    
     try:
         event_type = event.get("type", "")
         print("WEBHOOK RECEIVED:", event_type)
