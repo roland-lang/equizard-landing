@@ -781,22 +781,30 @@ import stripe
 @app.post("/stripe/webhook")
 async def stripe_webhook(request: Request):
     payload = await request.body()
-    sig_header = request.headers.get("stripe-signature")
-
-    endpoint_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+    sig_header = request.headers.get("stripe-signature", "")
+    endpoint_secret = (os.getenv("STRIPE_WEBHOOK_SECRET") or "").strip()
 
     try:
         event = stripe.Webhook.construct_event(
             payload,
             sig_header,
-            endpoint_secret
+            endpoint_secret,
         )
     except Exception as e:
-        print("❌ Webhook error:", str(e))
+        print("WEBHOOK ERROR:", str(e))
         return JSONResponse({"error": str(e)}, status_code=400)
 
-    # ✅ Just acknowledge for now
-    print("✅ Webhook received:", event["type"])
+    try:
+        event_type = event.get("type", "")
+        print("WEBHOOK RECEIVED:", event_type)
+
+        if event_type == "checkout.session.completed":
+            session = (event.get("data") or {}).get("object") or {}
+            _fulfil_checkout_session(session)
+
+    except Exception as e:
+        print("WEBHOOK FULFILMENT ERROR:", str(e))
+        return JSONResponse({"error": "Fulfilment failed"}, status_code=500)
 
     return JSONResponse({"ok": True})
 
