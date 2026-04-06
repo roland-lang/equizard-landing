@@ -808,7 +808,6 @@ async def stripe_webhook(request: Request):
 
     return JSONResponse({"ok": True})
 
-
 @app.get("/payment-success")
 def payment_success(request: Request, session_id: str | None = None):
     if not session_id:
