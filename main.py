@@ -887,3 +887,79 @@ def return_lookup(request: Request, email: str = Form("")):
 @app.get("/eventingwizard")
 def eventingwizard_entry():
     return RedirectResponse("/", status_code=303)
+
+
+@app.get("/payment-success")
+def payment_success(request: Request, session_id: str | None = None):
+    if not session_id:
+        return RedirectResponse("/?message=Missing+payment+session", status_code=303)
+
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+    except Exception as e:
+        return HTMLResponse(f"<h1>Stripe error</h1><pre>{e}</pre>")
+
+    try:
+        result = _fulfil_checkout_session(session)
+    except Exception as e:
+        print("FULFILMENT ERROR:", e)
+    
+        return RedirectResponse(
+            "/?message=Payment+received+but+setup+failed.+Please+contact+support",
+            status_code=303,
+        )
+        
+    if result.get("mode") == "extend":
+        return RedirectResponse(
+            url="/?message=Extension+applied+successfully",
+            status_code=303,
+        )
+
+    launch_url = result.get("launch_url")
+    if launch_url:
+        return RedirectResponse(launch_url, status_code=303)
+
+    return HTMLResponse("<h1>Unexpected error — no launch URL</h1>")
+
+
+@app.get("/return", response_class=HTMLResponse)
+def return_form(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "index.html",
+        {
+            "events": [],
+            "email": "",
+            "message": "",
+        },
+    )
+
+
+@app.post("/return", response_class=HTMLResponse)
+def return_lookup(request: Request, email: str = Form("")):
+    email = (email or "").strip()
+    events: list[dict[str, Any]] = []
+    message = ""
+
+    if email:
+        try:
+            events = _get_return_links_from_triwizard(email)
+        except Exception as e:
+            message = f"Unable to retrieve events at the moment: {e}"
+    if email and not events and not message:
+        message = "No events were found for that email address."
+
+    return templates.TemplateResponse(
+        request,
+        "index.html",
+        {
+            "events": events,
+            "email": email,
+            "message": message,
+        },
+    )
+
+
+@app.get("/eventingwizard")
+def eventingwizard_entry():
+    return RedirectResponse("/", status_code=303)
