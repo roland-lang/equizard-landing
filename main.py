@@ -802,10 +802,13 @@ async def stripe_webhook(request: Request):
             session = (event.get("data") or {}).get("object") or {}
             _fulfil_checkout_session(session)
 
-    except Exception as e:
-        print("WEBHOOK FULFILMENT ERROR:", str(e))
-        return JSONResponse({"error": "Fulfilment failed"}, status_code=500)
+    import traceback
 
+except Exception as e:
+    print("WEBHOOK FULFILMENT ERROR:", repr(e))
+    traceback.print_exc()
+    return JSONResponse({"error": "Fulfilment failed"}, status_code=500)
+    
     return JSONResponse({"ok": True})
 
 @app.get("/payment-success")
