@@ -795,8 +795,13 @@ def payment_success(request: Request, session_id: str | None = None):
     try:
         result = _fulfil_checkout_session(session)
     except Exception as e:
-        return HTMLResponse(f"<h1>FULFILMENT ERROR</h1><pre>{e}</pre>")
-
+        print("FULFILMENT ERROR:", e)
+    
+        return RedirectResponse(
+            "/?message=Payment+received+but+setup+failed.+Please+contact+support",
+            status_code=303,
+        )
+        
     if result.get("mode") == "extend":
         return RedirectResponse(
             url="/?message=Extension+applied+successfully",
