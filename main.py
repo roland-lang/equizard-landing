@@ -797,18 +797,29 @@ async def stripe_webhook(request: Request):
         return JSONResponse({"error": str(e)}, status_code=400)
 
     try:
-        event_type = event.get("type", "")
+        event_type = event["type"]
         print("WEBHOOK RECEIVED:", event_type)
 
         if event_type == "checkout.session.completed":
-            session = (event.get("data") or {}).get("object") or {}
-            print("WEBHOOK SESSION ID:", session.get("id"))
-            _fulfil_checkout_session(session)
+            session = event["data"]["object"]
+            print("WEBHOOK SESSION ID:", session["id"])
+
+            try:
+                _fulfil_checkout_session(session)
+            except Exception as e:
+                msg = str(e)
+                print("WEBHOOK FULFILMENT ERROR:", repr(e))
+                traceback.print_exc()
+
+                if "already processed" in msg.lower():
+                    return JSONResponse({"ok": True, "message": "Already fulfilled"})
+
+                return JSONResponse({"error": "Fulfilment failed"}, status_code=500)
 
     except Exception as e:
-        print("WEBHOOK FULFILMENT ERROR:", repr(e))
+        print("WEBHOOK HANDLER ERROR:", repr(e))
         traceback.print_exc()
-        return JSONResponse({"error": "Fulfilment failed"}, status_code=500)
+        return JSONResponse({"error": "Webhook handler failed"}, status_code=500)
 
     return JSONResponse({"ok": True})
 
