@@ -36,11 +36,17 @@ def _required_env(name: str) -> str:
 
 
 def _package_for_wizard(wizard: str) -> str:
-    return "tetrathlon" if wizard == "tetwizard" else "triathlon"
+    if wizard in {"tetwizard", "eventingwizard"}:
+        return "tetrathlon"
+    return "triathlon"
 
 
 def _title_for_wizard(wizard: str) -> str:
-    return "TetWizard" if wizard == "tetwizard" else "TriWizard"
+    if wizard == "eventingwizard":
+        return "Combined Tri/Tet Wizard"
+    if wizard == "tetwizard":
+        return "TetWizard"
+    return "TriWizard"
 
 
 def _normalise_licence(val: str | None) -> str:
@@ -331,27 +337,16 @@ def _fulfil_checkout_session(session: Any) -> dict[str, Any]:
         raise RuntimeError(f"Session not paid (payment_status={payment_status})")
 
     full_session = stripe.checkout.Session.retrieve(session_id)
-    print("FULL SESSION TYPE:", type(full_session))
-    print("FULL SESSION RAW METADATA ATTR:", repr(getattr(full_session, "metadata", None)))
-    print(
-        "FULL SESSION RAW TO_DICT:",
-        repr(full_session.to_dict_recursive() if hasattr(full_session, "to_dict_recursive") else "NO_TO_DICT"),
-    )
-
     meta_obj = _session_field(full_session, "metadata", {}) or {}
 
-    print("FULFIL METADATA OBJ:", repr(meta_obj))
-    print("FULFIL SESSION customer_email:", repr(_session_field(full_session, "customer_email", "")))
-    print("FULFIL SESSION customer_details:", repr(_session_field(full_session, "customer_details", {})))
-    
     wizard = str(_session_field(meta_obj, "wizard", "triwizard") or "triwizard").strip().lower()
-    if wizard not in {"triwizard", "tetwizard"}:
+    if wizard not in {"triwizard", "tetwizard", "eventingwizard"}:
         wizard = "triwizard"
-    
+
     mode = str(_session_field(meta_obj, "mode", "activate") or "activate").strip().lower()
     if mode not in {"activate", "extend"}:
         mode = "activate"
-    
+
     event_name = str(_session_field(meta_obj, "event_name", "") or "").strip()
     club_name = str(_session_field(meta_obj, "club_name", "") or "").strip()
     contact_email = str(_session_field(meta_obj, "contact_email", "") or "").strip()
@@ -359,6 +354,7 @@ def _fulfil_checkout_session(session: Any) -> dict[str, Any]:
     licence = _normalise_paid_licence(str(_session_field(meta_obj, "licence", "") or "").strip())
     event_id = str(_session_field(meta_obj, "event_id", "") or "").strip()
     duration_days = _safe_duration_days(str(_session_field(meta_obj, "duration_days", "0") or "0").strip())
+
     if not contact_email:
         contact_email = str(_session_field(full_session, "customer_email", "") or "").strip()
 
@@ -491,6 +487,35 @@ def tetwizard_form(
     )
 
 
+@app.get("/eventingwizard", response_class=HTMLResponse)
+def eventingwizard_form(
+    request: Request,
+    event_name: str = "",
+    club_name: str = "",
+    contact_email: str = "",
+    competition_date: str = "",
+    licence: str = "",
+):
+    licence = _normalise_licence(licence)
+    warning = _two_week_warning(licence, competition_date)
+
+    return templates.TemplateResponse(
+        request,
+        "wizard_onboarding.html",
+        {
+            "wizard": "eventingwizard",
+            "wizard_title": _title_for_wizard("eventingwizard"),
+            "package_type": _package_for_wizard("eventingwizard"),
+            "event_name": event_name,
+            "club_name": club_name,
+            "contact_email": contact_email,
+            "competition_date": competition_date,
+            "licence": licence,
+            "warning": warning,
+        },
+    )
+
+
 @app.post("/start-wizard")
 def start_wizard(
     request: Request,
@@ -501,14 +526,6 @@ def start_wizard(
     competition_date: str = Form(""),
     licence: str = Form("free"),
 ):
-    print("START_WIZARD VALUES:")
-    print("wizard:", repr(wizard))
-    print("event_name:", repr(event_name))
-    print("club_name:", repr(club_name))
-    print("contact_email:", repr(contact_email))
-    print("competition_date:", repr(competition_date))
-    print("licence:", repr(licence))
-
     wizard = (wizard or "").strip().lower()
     event_name = (event_name or "").strip()
     club_name = (club_name or "").strip()
@@ -516,7 +533,7 @@ def start_wizard(
     competition_date = (competition_date or "").strip()
     licence = _normalise_licence(licence)
 
-    if wizard not in {"triwizard", "tetwizard"}:
+    if wizard not in {"triwizard", "tetwizard", "eventingwizard"}:
         return RedirectResponse("/", status_code=303)
 
     if not _parse_competition_date(competition_date):
@@ -570,7 +587,7 @@ def payment_page(
     duration_days: str = "",
 ):
     wizard = (wizard or "triwizard").strip().lower()
-    if wizard not in {"triwizard", "tetwizard"}:
+    if wizard not in {"triwizard", "tetwizard", "eventingwizard"}:
         wizard = "triwizard"
 
     event_name = (event_name or "").strip()
@@ -628,19 +645,8 @@ def create_checkout_session(
     event_id: str = Form(""),
     duration_days: str = Form(""),
 ):
-    print("CREATE_CHECKOUT_SESSION VALUES:")
-    print("wizard:", repr(wizard))
-    print("event_name:", repr(event_name))
-    print("club_name:", repr(club_name))
-    print("contact_email:", repr(contact_email))
-    print("competition_date:", repr(competition_date))
-    print("licence:", repr(licence))
-    print("mode:", repr(mode))
-    print("event_id:", repr(event_id))
-    print("duration_days:", repr(duration_days))
-
     wizard = (wizard or "triwizard").strip().lower()
-    if wizard not in {"triwizard", "tetwizard"}:
+    if wizard not in {"triwizard", "tetwizard", "eventingwizard"}:
         return RedirectResponse("/?message=Invalid+wizard", status_code=303)
 
     event_name = (event_name or "").strip()
@@ -670,11 +676,13 @@ def create_checkout_session(
     activation_price_map = {
         "triwizard": {"2_week": 2500, "1_month": 3500},
         "tetwizard": {"2_week": 3500, "1_month": 4500},
+        "eventingwizard": {"2_week": 4000, "1_month": 5000},
     }
 
     extension_price_map = {
         "triwizard": {7: 1000, 14: 2000, 30: 3000},
         "tetwizard": {7: 1500, 14: 2500, 30: 3500},
+        "eventingwizard": {7: 2000, 14: 3000, 30: 4000},
     }
 
     if mode == "extend":
@@ -718,23 +726,6 @@ def create_checkout_session(
     base_url = _required_env("BASE_URL")
 
     try:
-        print("STRIPE METADATA TO SEND:")
-        print(
-            repr(
-                {
-                    "wizard": wizard,
-                    "event_name": event_name,
-                    "club_name": club_name,
-                    "contact_email": contact_email,
-                    "competition_date": competition_date,
-                    "licence": licence_for_metadata,
-                    "mode": mode,
-                    "event_id": event_id,
-                    "duration_days": str(duration_days_int),
-                }
-            )
-        )
-
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             mode="payment",
@@ -764,9 +755,6 @@ def create_checkout_session(
                 "duration_days": str(duration_days_int),
             },
         )
-
-        print("STRIPE SESSION CREATED ID:", repr(getattr(session, "id", "")))
-        print("STRIPE SESSION CREATED METADATA:", repr(getattr(session, "metadata", {})))
     except Exception as e:
         return RedirectResponse(
             f"/?message=Stripe+checkout+error:+{urllib.parse.quote_plus(str(e))}",
@@ -776,14 +764,11 @@ def create_checkout_session(
     return RedirectResponse(session.url, status_code=303)
 
 
-import stripe
-import traceback
-
 @app.post("/stripe/webhook")
 async def stripe_webhook(request: Request):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
-    endpoint_secret = (os.getenv("STRIPE_WEBHOOK_SECRET") or "").strip()
+    endpoint_secret = _stripe_webhook_secret()
 
     try:
         event = stripe.Webhook.construct_event(
@@ -792,33 +777,23 @@ async def stripe_webhook(request: Request):
             endpoint_secret,
         )
     except Exception as e:
-        print("WEBHOOK ERROR:", repr(e))
-        traceback.print_exc()
         return JSONResponse({"error": str(e)}, status_code=400)
 
     try:
         event_type = event["type"]
-        print("WEBHOOK RECEIVED:", event_type)
 
         if event_type == "checkout.session.completed":
             session = event["data"]["object"]
-            print("WEBHOOK SESSION ID:", session["id"])
 
             try:
                 _fulfil_checkout_session(session)
             except Exception as e:
                 msg = str(e)
-                print("WEBHOOK FULFILMENT ERROR:", repr(e))
-                traceback.print_exc()
-
                 if "already processed" in msg.lower():
                     return JSONResponse({"ok": True, "message": "Already fulfilled"})
-
                 return JSONResponse({"error": "Fulfilment failed"}, status_code=500)
 
-    except Exception as e:
-        print("WEBHOOK HANDLER ERROR:", repr(e))
-        traceback.print_exc()
+    except Exception:
         return JSONResponse({"error": "Webhook handler failed"}, status_code=500)
 
     return JSONResponse({"ok": True})
@@ -836,14 +811,12 @@ def payment_success(request: Request, session_id: str | None = None):
 
     try:
         result = _fulfil_checkout_session(session)
-    except Exception as e:
-        print("FULFILMENT ERROR:", e)
-    
+    except Exception:
         return RedirectResponse(
             "/?message=Payment+received+but+setup+failed.+Please+contact+support",
             status_code=303,
         )
-        
+
     if result.get("mode") == "extend":
         return RedirectResponse(
             url="/?message=Extension+applied+successfully",
@@ -881,6 +854,7 @@ def return_lookup(request: Request, email: str = Form("")):
             events = _get_return_links_from_triwizard(email)
         except Exception as e:
             message = f"Unable to retrieve events at the moment: {e}"
+
     if email and not events and not message:
         message = "No events were found for that email address."
 
@@ -893,84 +867,3 @@ def return_lookup(request: Request, email: str = Form("")):
             "message": message,
         },
     )
-
-
-@app.get("/eventingwizard")
-def eventingwizard_entry():
-    return RedirectResponse("/", status_code=303)
-
-
-@app.get("/payment-success")
-def payment_success(request: Request, session_id: str | None = None):
-    if not session_id:
-        return RedirectResponse("/?message=Missing+payment+session", status_code=303)
-
-    try:
-        session = stripe.checkout.Session.retrieve(session_id)
-    except Exception as e:
-        return HTMLResponse(f"<h1>Stripe error</h1><pre>{e}</pre>")
-
-    try:
-        result = _fulfil_checkout_session(session)
-    except Exception as e:
-        print("FULFILMENT ERROR:", e)
-    
-        return RedirectResponse(
-            "/?message=Payment+received+but+setup+failed.+Please+contact+support",
-            status_code=303,
-        )
-        
-    if result.get("mode") == "extend":
-        return RedirectResponse(
-            url="/?message=Extension+applied+successfully",
-            status_code=303,
-        )
-
-    launch_url = result.get("launch_url")
-    if launch_url:
-        return RedirectResponse(launch_url, status_code=303)
-
-    return HTMLResponse("<h1>Unexpected error — no launch URL</h1>")
-
-
-@app.get("/return", response_class=HTMLResponse)
-def return_form(request: Request):
-    return templates.TemplateResponse(
-        request,
-        "index.html",
-        {
-            "events": [],
-            "email": "",
-            "message": "",
-        },
-    )
-
-
-@app.post("/return", response_class=HTMLResponse)
-def return_lookup(request: Request, email: str = Form("")):
-    email = (email or "").strip()
-    events: list[dict[str, Any]] = []
-    message = ""
-
-    if email:
-        try:
-            events = _get_return_links_from_triwizard(email)
-        except Exception as e:
-            message = f"Unable to retrieve events at the moment: {e}"
-    if email and not events and not message:
-        message = "No events were found for that email address."
-
-    return templates.TemplateResponse(
-        request,
-        "index.html",
-        {
-            "events": events,
-            "email": email,
-            "message": message,
-        },
-    )
-
-
-@app.get("/eventingwizard")
-def eventingwizard_entry():
-    return RedirectResponse("/", status_code=303)
