@@ -36,10 +36,11 @@ def _required_env(name: str) -> str:
 
 
 def _package_for_wizard(wizard: str) -> str:
-    if wizard in {"tetwizard", "eventingwizard"}:
+    if wizard == "tetwizard":
         return "tetrathlon"
+    if wizard == "eventingwizard":
+        return "combined_tri_tet"
     return "triathlon"
-
 
 def _title_for_wizard(wizard: str) -> str:
     if wizard == "eventingwizard":
