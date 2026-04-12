@@ -107,7 +107,10 @@
         Complete this short form to create your event workspace.
       </p>
 
-      {% if wizard == "tetwizard" %}
+      {% if wizard == "eventingwizard" %}
+        {% set price_2_week = "£40" %}
+        {% set price_1_month = "£50" %}
+      {% elif wizard == "tetwizard" %}
         {% set price_2_week = "£35" %}
         {% set price_1_month = "£45" %}
       {% else %}
