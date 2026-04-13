@@ -127,7 +127,7 @@
 
       <form method="post" action="/create-checkout-session">
 
-        <input type="hidden" name="wizard" value="{{ wizard if wizard in ['triwizard','tetwizard'] else 'triwizard' }}">
+        <input type="hidden" name="wizard" value="{{ wizard if wizard in ['triwizard','tetwizard','eventingwizard'] else 'triwizard' }}">
       
         <!-- 🔥 CRITICAL FIELDS -->
         <input type="hidden" name="event_name" value="{{ event_name | default('', true) }}">
@@ -156,7 +156,7 @@
       {% else %}
         <a
           class="back"
-          href="/{{ wizard if wizard in ['triwizard', 'tetwizard'] else 'triwizard' }}?event_name={{ event_name | urlencode }}&club_name={{ club_name | urlencode }}&contact_email={{ contact_email | urlencode }}&competition_date={{ competition_date | urlencode }}&licence={{ licence if licence in ['2_week', '1_month'] else '2_week' }}"
+          href="/{{ wizard if wizard in ['triwizard', 'tetwizard', 'eventingwizard'] else 'triwizard' }}?event_name={{ event_name | urlencode }}&club_name={{ club_name | urlencode }}&contact_email={{ contact_email | urlencode }}&competition_date={{ competition_date | urlencode }}&licence={{ licence if licence in ['2_week', '1_month'] else '2_week' }}"
         >
           ← Back
         </a>
