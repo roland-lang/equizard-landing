@@ -812,7 +812,16 @@ def payment_success(request: Request, session_id: str | None = None):
 
     try:
         result = _fulfil_checkout_session(session)
-    except Exception:
+    except Exception as e:
+        msg = str(e)
+
+        if "already processed" in msg.lower():
+            return RedirectResponse(
+                "/?message=Payment+processed+successfully.+Please+use+Returning+organiser+to+open+your+event.",
+                status_code=303,
+            )
+
+        print("PAYMENT SUCCESS FULFILMENT ERROR:", repr(e))
         return RedirectResponse(
             "/?message=Payment+received+but+setup+failed.+Please+contact+support",
             status_code=303,
@@ -829,6 +838,7 @@ def payment_success(request: Request, session_id: str | None = None):
         return RedirectResponse(launch_url, status_code=303)
 
     return HTMLResponse("<h1>Unexpected error — no launch URL</h1>")
+
 
 
 @app.get("/return", response_class=HTMLResponse)
