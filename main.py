@@ -675,15 +675,15 @@ def create_checkout_session(
             return RedirectResponse("/?message=Please+enter+a+contact+email", status_code=303)
 
     activation_price_map = {
-        "triwizard": {"2_week": 100, "1_month": 100},
-        "tetwizard": {"2_week": 100, "1_month": 100},
-        "eventingwizard": {"2_week": 100, "1_month": 100},
+        "triwizard": {"2_week": 2500, "1_month": 3500},
+        "tetwizard": {"2_week": 3500, "1_month": 4500},
+        "eventingwizard": {"2_week": 4500, "1_month": 5500},
     }
     
     extension_price_map = {
-        "triwizard": {7: 100, 14: 100, 30: 100},
-        "tetwizard": {7: 100, 14: 100, 30: 100},
-        "eventingwizard": {7: 100, 14: 100, 30: 100},
+        "triwizard": {7: 1000, 14: 2000, 30: 3000},
+        "tetwizard": {7: 1000, 14: 2000, 30: 3000},
+        "eventingwizard": {7: 1000, 14: 2000, 30: 3000},
     }
 
     if mode == "extend":
