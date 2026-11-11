@@ -183,12 +183,30 @@ def _get_prices_from_triwizard() -> dict[str, Any]:
                     f"Invalid price: {product}/{price_type}"
                 )
 
-    return prices
+        return prices
+
+
+def _wizard_pricing_context() -> dict[str, Any]:
+    """
+    Supply current TriWizard prices to the wizard onboarding forms.
+    """
+    try:
+        return {
+            "prices": _get_prices_from_triwizard(),
+            "pricing_error": "",
+        }
+    except Exception:
+        return {
+            "prices": {},
+            "pricing_error": (
+                "Current licence prices are temporarily unavailable. "
+                "Please try again shortly."
+            ),
+        }
 
 
 def _stripe_webhook_secret() -> str:
     return _required_env("STRIPE_WEBHOOK_SECRET")
-
 
 # -----------------------------------------------------
 # Safe Stripe helpers
