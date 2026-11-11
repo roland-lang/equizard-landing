@@ -760,20 +760,18 @@ def create_checkout_session(
         if not contact_email:
             return RedirectResponse("/?message=Please+enter+a+contact+email", status_code=303)
 
-    activation_price_map = {
-        "triwizard": {"2_week": 2500, "1_month": 3500},
-        "tetwizard": {"2_week": 3500, "1_month": 4500},
-        "eventingwizard": {"2_week": 4500, "1_month": 5500},
-    }
-    
-    extension_price_map = {
-        "triwizard": {7: 1000, 14: 2000, 30: 3000},
-        "tetwizard": {7: 1000, 14: 2000, 30: 3000},
-        "eventingwizard": {7: 1000, 14: 2000, 30: 3000},
-    }
-
+    # Retrieve current prices from TriWizard.
+    # Never use hardcoded or browser-supplied prices.
+    try:
+        current_prices = _get_prices_from_triwizard()
+    except Exception:
+        return RedirectResponse(
+            "/?message=Current+prices+are+temporarily+unavailable.+Please+try+again+shortly.",
+            status_code=303,
+        )
+        
     if mode == "extend":
-        amount = extension_price_map.get(wizard, {}).get(duration_days_int)
+        amount = current_prices[wizard][f"extension_{duration_days_int}"]
         product_name = f"{_title_for_wizard(wizard)} {_duration_label(duration_days_int)}"
         cancel_query = urllib.parse.urlencode(
             {
@@ -790,7 +788,7 @@ def create_checkout_session(
         )
         licence_for_metadata = ""
     else:
-        amount = activation_price_map.get(wizard, {}).get(licence)
+        amount = current_prices[wizard][licence]
         product_name = f"{_title_for_wizard(wizard)} {licence.replace('_', ' ')} access"
         cancel_query = urllib.parse.urlencode(
             {
