@@ -914,6 +914,16 @@ def payment_success(request: Request, session_id: str | None = None):
 
 @app.get("/return", response_class=HTMLResponse)
 def return_form(request: Request):
+    try:
+        prices = _get_prices_from_triwizard()
+        pricing_error = ""
+    except Exception:
+        prices = {}
+        pricing_error = (
+            "Current licence prices are temporarily unavailable. "
+            "Please try again shortly."
+        )
+
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -921,6 +931,8 @@ def return_form(request: Request):
             "events": [],
             "email": "",
             "message": "",
+            "prices": prices,
+            "pricing_error": pricing_error,
         },
     )
 
@@ -940,6 +952,16 @@ def return_lookup(request: Request, email: str = Form("")):
     if email and not events and not message:
         message = "No events were found for that email address."
 
+    try:
+        prices = _get_prices_from_triwizard()
+        pricing_error = ""
+    except Exception:
+        prices = {}
+        pricing_error = (
+            "Current licence prices are temporarily unavailable. "
+            "Please try again shortly."
+        )
+
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -947,5 +969,7 @@ def return_lookup(request: Request, email: str = Form("")):
             "events": events,
             "email": email,
             "message": message,
+            "prices": prices,
+            "pricing_error": pricing_error,
         },
     )
