@@ -664,7 +664,36 @@ def start_wizard(
                 f"/?message={urllib.parse.quote_plus(str(e))}",
                 status_code=303,
             )
+    
+    # Check whether this paid-tier licence is currently complimentary.
+    # A £0 licence grants full access for the selected licence term.
+    try:
+        current_prices = _get_prices_from_triwizard()
+        amount = current_prices[wizard][licence]
+    except Exception:
+        return RedirectResponse(
+            "/?message=Current+prices+are+temporarily+unavailable.+Please+try+again+shortly.",
+            status_code=303,
+        )
 
+    if amount == 0:
+        try:
+            launch_url = _create_event_in_triwizard(
+                wizard=wizard,
+                event_name=event_name,
+                club_name=club_name,
+                contact_email=contact_email,
+                competition_date=competition_date,
+                licence=licence,
+                payment_status="complimentary",
+            )
+            return RedirectResponse(launch_url, status_code=303)
+        except Exception as e:
+            return RedirectResponse(
+                f"/?message={urllib.parse.quote_plus(str(e))}",
+                status_code=303,
+            )
+    
     query = urllib.parse.urlencode(
         {
             "wizard": wizard,
