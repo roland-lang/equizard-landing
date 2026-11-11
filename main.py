@@ -113,6 +113,79 @@ def _triwizard_public_base_url() -> str:
     return _required_env("TRIWIZARD_PUBLIC_BASE_URL").rstrip("/")
 
 
+def _get_prices_from_triwizard() -> dict[str, Any]:
+    """
+    Retrieve current licence prices from live TriWizard.
+
+    Prices are returned in GBP pence.
+    Uses the existing portal shared secret.
+    """
+
+    base_url = _triwizard_public_base_url()
+    shared_secret = _required_env("PORTAL_SHARED_SECRET")
+
+    req = urllib.request.Request(
+        f"{base_url}/portal/pricing",
+        headers={
+            "X-Portal-Secret": shared_secret,
+            "Accept": "application/json",
+        },
+        method="GET",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.HTTPError, urllib.error.URLError) as exc:
+        raise RuntimeError(
+            "Unable to retrieve current prices from TriWizard"
+        ) from exc
+
+    if not isinstance(payload, dict):
+        raise RuntimeError("Invalid pricing response")
+
+    if payload.get("ok") is not True:
+        raise RuntimeError("Pricing API returned an error")
+
+    if payload.get("currency") != "GBP":
+        raise RuntimeError("Unexpected pricing currency")
+
+    prices = payload.get("prices")
+    if not isinstance(prices, dict):
+        raise RuntimeError("Missing pricing data")
+
+    required_products = (
+        "triwizard",
+        "tetwizard",
+        "eventingwizard",
+    )
+    required_price_types = (
+        "2_week",
+        "1_month",
+        "extension_7",
+        "extension_14",
+        "extension_30",
+    )
+
+    for product in required_products:
+        product_prices = prices.get(product)
+
+        if not isinstance(product_prices, dict):
+            raise RuntimeError(
+                f"Missing pricing for {product}"
+            )
+
+        for price_type in required_price_types:
+            amount = product_prices.get(price_type)
+
+            if type(amount) is not int or amount < 0:
+                raise RuntimeError(
+                    f"Invalid price: {product}/{price_type}"
+                )
+
+    return prices
+
+
 def _stripe_webhook_secret() -> str:
     return _required_env("STRIPE_WEBHOOK_SECRET")
 
