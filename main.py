@@ -490,8 +490,19 @@ def _fulfil_checkout_session(session: Any) -> dict[str, Any]:
 # -----------------------------------------------------
 # Routes
 # -----------------------------------------------------
+
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request, message: str = ""):
+    try:
+        prices = _get_prices_from_triwizard()
+        pricing_error = ""
+    except Exception:
+        prices = {}
+        pricing_error = (
+            "Current licence prices are temporarily unavailable. "
+            "Please try again shortly."
+        )
+
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -499,6 +510,8 @@ def home(request: Request, message: str = ""):
             "events": [],
             "email": "",
             "message": message or "",
+            "prices": prices,
+            "pricing_error": pricing_error,
         },
     )
 
