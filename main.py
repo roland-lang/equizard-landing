@@ -541,6 +541,7 @@ def triwizard_form(
             "competition_date": competition_date,
             "licence": licence,
             "warning": warning,
+            **_wizard_pricing_context(),
         },
     )
 
@@ -570,6 +571,7 @@ def tetwizard_form(
             "competition_date": competition_date,
             "licence": licence,
             "warning": warning,
+            **_wizard_pricing_context(),
         },
     )
 
@@ -599,6 +601,7 @@ def eventingwizard_form(
             "competition_date": competition_date,
             "licence": licence,
             "warning": warning,
+            **_wizard_pricing_context(),
         },
     )
 
