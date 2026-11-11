@@ -15,7 +15,12 @@
       color:#111827;
       padding:24px 16px 40px;
     }
-    .wrap{ max-width:760px; margin:0 auto; }
+
+    .wrap{
+      max-width:760px;
+      margin:0 auto;
+    }
+
     .card{
       background:#fff;
       border:1px solid #e5e7eb;
@@ -23,8 +28,15 @@
       padding:22px;
       box-shadow:0 4px 18px rgba(17,24,39,0.05);
     }
-    h1{ margin-top:0; margin-bottom:10px; }
-    .muted{ color:#6b7280; }
+
+    h1{
+      margin-top:0;
+      margin-bottom:10px;
+    }
+
+    .muted{
+      color:#6b7280;
+    }
 
     label{
       display:block;
@@ -39,6 +51,7 @@
       border:1px solid #d1d5db;
       border-radius:10px;
       font-size:16px;
+      box-sizing:border-box;
     }
 
     .options{
@@ -57,6 +70,11 @@
     .option input{
       width:auto;
       margin-right:8px;
+    }
+
+    .option.unavailable{
+      opacity:0.6;
+      cursor:not-allowed;
     }
 
     .btn{
@@ -88,6 +106,17 @@
       line-height:1.5;
     }
 
+    .pricing-error{
+      margin-top:12px;
+      padding:12px;
+      background:#fef2f2;
+      border:1px solid #fecaca;
+      border-radius:10px;
+      color:#991b1b;
+      font-size:14px;
+      line-height:1.5;
+    }
+
     .back{
       display:inline-block;
       margin-top:18px;
@@ -97,6 +126,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <div class="card">
@@ -107,16 +137,12 @@
         Complete this short form to create your event workspace.
       </p>
 
-      {% if wizard == "eventingwizard" %}
-        {% set price_2_week = "£45" %}
-        {% set price_1_month = "£50" %}
-      {% elif wizard == "tetwizard" %}
-        {% set price_2_week = "£35" %}
-        {% set price_1_month = "£45" %}
-      {% else %}
-        {% set price_2_week = "£25" %}
-        {% set price_1_month = "£35" %}
-      {% endif %}
+      {% set current_prices = prices | default({}) %}
+      {% set wizard_prices = current_prices.get(wizard, {}) %}
+      {% set prices_available =
+          wizard_prices.get('2_week') is number
+          and wizard_prices.get('1_month') is number
+      %}
 
       <form id="createForm" action="/start-wizard" method="post">
         <input type="hidden" name="wizard" value="{{ wizard }}">
@@ -160,26 +186,43 @@
         <label>Select access</label>
 
         <div class="options">
-          <label class="option">
+
+          <label class="option {% if not prices_available %}unavailable{% endif %}">
             <input
               type="radio"
               name="licence"
               value="2_week"
-              {% if licence == "2_week" or not licence %}checked{% endif %}
+              {% if prices_available and licence == "2_week" %}checked{% endif %}
+              {% if not prices_available %}disabled{% endif %}
             >
             <strong>2 weeks access</strong><br>
-            <span class="muted">{{ price_2_week }}</span>
+
+            {% if prices_available %}
+              <span class="muted">
+                £{{ "%.2f"|format(wizard_prices['2_week'] / 100) }}
+              </span>
+            {% else %}
+              <span class="muted">Temporarily unavailable</span>
+            {% endif %}
           </label>
 
-          <label class="option">
+          <label class="option {% if not prices_available %}unavailable{% endif %}">
             <input
               type="radio"
               name="licence"
               value="1_month"
-              {% if licence == "1_month" %}checked{% endif %}
+              {% if prices_available and licence == "1_month" %}checked{% endif %}
+              {% if not prices_available %}disabled{% endif %}
             >
             <strong>1 month access</strong><br>
-            <span class="muted">{{ price_1_month }}</span>
+
+            {% if prices_available %}
+              <span class="muted">
+                £{{ "%.2f"|format(wizard_prices['1_month'] / 100) }}
+              </span>
+            {% else %}
+              <span class="muted">Temporarily unavailable</span>
+            {% endif %}
           </label>
 
           <label class="option">
@@ -187,23 +230,33 @@
               type="radio"
               name="licence"
               value="free"
-              {% if licence == "free" %}checked{% endif %}
+              {% if licence == "free" or not prices_available %}checked{% endif %}
             >
             <strong>Practice (demo)</strong><br>
             <span class="muted">No upload / limited features</span>
           </label>
+
         </div>
+
+        {% if not prices_available %}
+          <div class="pricing-error">
+            Current paid licence prices are temporarily unavailable.
+            Please try again shortly, or continue with the free demo.
+          </div>
+        {% endif %}
 
         {% if warning %}
           <div class="warning">{{ warning }}</div>
         {% endif %}
 
-        <button id="submitBtn" type="submit" class="btn">Continue</button>
+        <button id="submitBtn" type="submit" class="btn">
+          Continue
+        </button>
       </form>
 
       <a
         class="back"
-        href="/{{ wizard }}?event_name={{ event_name | urlencode }}&club_name={{ club_name | urlencode }}&contact_email={{ contact_email | urlencode }}&competition_date={{ competition_date | urlencode }}&licence={{ licence or '2_week' }}"
+        href="/"
       >
         ← Back
       </a>
@@ -217,8 +270,12 @@
 
     let submitted = false;
 
-    form.addEventListener("submit", function () {
-      if (submitted) return false;
+    form.addEventListener("submit", function (event) {
+      if (submitted) {
+        event.preventDefault();
+        return;
+      }
+
       submitted = true;
       btn.disabled = true;
       btn.textContent = "Continuing…";
